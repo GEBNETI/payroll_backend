@@ -1,3 +1,6 @@
+#[path = "support/mod.rs"]
+mod support;
+
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -7,7 +10,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn health_endpoint_returns_package_metadata() {
-    let app = nomina::server::router();
+    let app = support::test_router();
 
     let response = app
         .oneshot(

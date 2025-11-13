@@ -1,7 +1,7 @@
 use axum::{Router, routing::get};
 
-use crate::handlers;
+use crate::{handlers, server::AppState};
 
-pub fn router() -> Router {
-    Router::new().route("/health", get(handlers::health::check))
+pub fn router() -> Router<AppState> {
+    Router::<AppState>::new().route("/health", get(handlers::health::check))
 }

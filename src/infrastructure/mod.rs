@@ -1,2 +1,2 @@
-#![allow(dead_code)]
-//! Infrastructure adapters (database clients, configuration, telemetry) live here.
+pub mod organization_repository;
+pub mod surreal;
