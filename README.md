@@ -20,16 +20,16 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | GET    | `/organizations/:id` | Fetch organization |
 | PUT    | `/organizations/:id` | Update organization name |
 | DELETE | `/organizations/:id` | Delete organization |
-| POST   | `/payrolls`        | Create payroll (`organization_id` required) |
-| GET    | `/payrolls`        | List payrolls |
-| GET    | `/payrolls/:id`    | Fetch payroll |
-| PUT    | `/payrolls/:id`    | Update payroll fields |
-| DELETE | `/payrolls/:id`    | Delete payroll |
-| POST   | `/divisions`       | Create division (`payroll_id`, optional `parent_division_id`) |
-| GET    | `/divisions`       | List divisions |
-| GET    | `/divisions/:id`   | Fetch division |
-| PUT    | `/divisions/:id`   | Update division fields / parent |
-| DELETE | `/divisions/:id`   | Delete division |
+| POST   | `/organizations/:organization_id/payrolls` | Create payroll within an organization |
+| GET    | `/organizations/:organization_id/payrolls` | List payrolls for an organization |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id` | Fetch payroll |
+| PUT    | `/organizations/:organization_id/payrolls/:payroll_id` | Update payroll fields |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id` | Delete payroll |
+| POST   | `/organizations/:organization_id/payrolls/:payroll_id/divisions` | Create division (optional `parent_division_id`) |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions` | List divisions for a payroll |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id` | Fetch division |
+| PUT    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id` | Update division fields / parent |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id` | Delete division |
 
 ## API Documentation
 

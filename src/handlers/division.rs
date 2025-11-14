@@ -19,7 +19,6 @@ pub struct CreateDivisionRequest {
     pub name: String,
     pub description: String,
     pub budget_code: String,
-    pub payroll_id: Uuid,
     pub parent_division_id: Option<Uuid>,
 }
 
@@ -28,7 +27,6 @@ pub struct UpdateDivisionRequest {
     pub name: Option<String>,
     pub description: Option<String>,
     pub budget_code: Option<String>,
-    pub payroll_id: Option<Uuid>,
     #[serde(default, deserialize_with = "deserialize_option_option")]
     #[schema(value_type = Option<Uuid>)]
     pub parent_division_id: Option<Option<Uuid>>,
@@ -46,8 +44,17 @@ pub struct DivisionResponse {
 
 #[derive(Debug, Deserialize, IntoParams)]
 #[into_params(parameter_in = Path)]
+pub struct PayrollDivisionsPathParams {
+    pub organization_id: Uuid,
+    pub payroll_id: Uuid,
+}
+
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
 pub struct DivisionPathParams {
-    pub id: Uuid,
+    pub organization_id: Uuid,
+    pub payroll_id: Uuid,
+    pub division_id: Uuid,
 }
 
 impl From<Division> for DivisionResponse {
@@ -69,7 +76,6 @@ impl CreateDivisionRequest {
             name: self.name,
             description: self.description,
             budget_code: self.budget_code,
-            payroll_id: self.payroll_id,
             parent_division_id: self.parent_division_id,
         }
     }
@@ -81,7 +87,6 @@ impl UpdateDivisionRequest {
             name: self.name,
             description: self.description,
             budget_code: self.budget_code,
-            payroll_id: self.payroll_id,
             parent_division_id: self.parent_division_id,
         }
     }
@@ -96,20 +101,27 @@ where
 
 #[utoipa::path(
     post,
-    path = "/divisions",
+    path = "/organizations/{organization_id}/payrolls/{payroll_id}/divisions",
+    params(PayrollDivisionsPathParams),
     request_body = CreateDivisionRequest,
     responses(
         (status = 201, description = "Division created", body = DivisionResponse)
     ),
-    tag = "Divisions"
+    tag = "Divisions",
+    operation_id = "create_division"
 )]
 pub async fn create(
     State(state): State<AppState>,
+    Path(params): Path<PayrollDivisionsPathParams>,
     Json(payload): Json<CreateDivisionRequest>,
 ) -> AppResult<(StatusCode, Json<DivisionResponse>)> {
     let division = state
         .division_service()
-        .create(payload.into_params())
+        .create(
+            params.organization_id,
+            params.payroll_id,
+            payload.into_params(),
+        )
         .await?;
 
     Ok((StatusCode::CREATED, Json(division.into())))
@@ -117,88 +129,125 @@ pub async fn create(
 
 #[utoipa::path(
     get,
-    path = "/divisions",
+    path = "/organizations/{organization_id}/payrolls/{payroll_id}/divisions",
+    params(PayrollDivisionsPathParams),
     responses(
         (status = 200, description = "List divisions", body = [DivisionResponse])
     ),
-    tag = "Divisions"
+    tag = "Divisions",
+    operation_id = "list_divisions"
 )]
-pub async fn list(State(state): State<AppState>) -> AppResult<Json<Vec<DivisionResponse>>> {
-    let divisions = state.division_service().list().await?;
+pub async fn list(
+    State(state): State<AppState>,
+    Path(params): Path<PayrollDivisionsPathParams>,
+) -> AppResult<Json<Vec<DivisionResponse>>> {
+    let divisions = state
+        .division_service()
+        .list(params.organization_id, params.payroll_id)
+        .await?;
     let response = divisions.into_iter().map(DivisionResponse::from).collect();
     Ok(Json(response))
 }
 
 #[utoipa::path(
     get,
-    path = "/divisions/{id}",
+    path = "/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}",
     params(DivisionPathParams),
     responses(
         (status = 200, description = "Get division", body = DivisionResponse),
         (status = 404, description = "Division not found")
     ),
-    tag = "Divisions"
+    tag = "Divisions",
+    operation_id = "get_division"
 )]
 pub async fn get(
     State(state): State<AppState>,
     Path(params): Path<DivisionPathParams>,
 ) -> AppResult<Json<DivisionResponse>> {
-    let id = params.id;
     let division = state
         .division_service()
-        .get(id)
+        .get(
+            params.organization_id,
+            params.payroll_id,
+            params.division_id,
+        )
         .await?
-        .ok_or_else(|| AppError::not_found(format!("division `{id}` not found")))?;
+        .ok_or_else(|| {
+            AppError::not_found(format!(
+                "division `{}` not found for payroll `{}` in organization `{}`",
+                params.division_id, params.payroll_id, params.organization_id
+            ))
+        })?;
 
     Ok(Json(division.into()))
 }
 
 #[utoipa::path(
     put,
-    path = "/divisions/{id}",
+    path = "/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}",
     params(DivisionPathParams),
     request_body = UpdateDivisionRequest,
     responses(
         (status = 200, description = "Division updated", body = DivisionResponse),
         (status = 404, description = "Division not found")
     ),
-    tag = "Divisions"
+    tag = "Divisions",
+    operation_id = "update_division"
 )]
 pub async fn update(
     State(state): State<AppState>,
     Path(params): Path<DivisionPathParams>,
     Json(payload): Json<UpdateDivisionRequest>,
 ) -> AppResult<Json<DivisionResponse>> {
-    let id = params.id;
     let division = state
         .division_service()
-        .update(id, payload.into_params())
+        .update(
+            params.organization_id,
+            params.payroll_id,
+            params.division_id,
+            payload.into_params(),
+        )
         .await?
-        .ok_or_else(|| AppError::not_found(format!("division `{id}` not found")))?;
+        .ok_or_else(|| {
+            AppError::not_found(format!(
+                "division `{}` not found for payroll `{}` in organization `{}`",
+                params.division_id, params.payroll_id, params.organization_id
+            ))
+        })?;
 
     Ok(Json(division.into()))
 }
 
 #[utoipa::path(
     delete,
-    path = "/divisions/{id}",
+    path = "/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}",
     params(DivisionPathParams),
     responses(
         (status = 204, description = "Division deleted"),
         (status = 404, description = "Division not found")
     ),
-    tag = "Divisions"
+    tag = "Divisions",
+    operation_id = "delete_division"
 )]
 pub async fn delete(
     State(state): State<AppState>,
     Path(params): Path<DivisionPathParams>,
 ) -> AppResult<StatusCode> {
-    let id = params.id;
-    let removed = state.division_service().delete(id).await?;
+    let removed = state
+        .division_service()
+        .delete(
+            params.organization_id,
+            params.payroll_id,
+            params.division_id,
+        )
+        .await?;
 
     if removed {
         Ok(StatusCode::NO_CONTENT)
     } else {
-        Err(AppError::not_found(format!("division `{id}` not found")))
+        Err(AppError::not_found(format!(
+            "division `{}` not found for payroll `{}` in organization `{}`",
+            params.division_id, params.payroll_id, params.organization_id
+        )))
     }
 }

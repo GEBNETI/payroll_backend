@@ -67,9 +67,13 @@ where
         record.map(record_to_domain).transpose()
     }
 
-    async fn fetch_all(&self) -> AppResult<Vec<Payroll>> {
+    async fn fetch_by_organization(&self, organization_id: Uuid) -> AppResult<Vec<Payroll>> {
         let records: Vec<PayrollRecord> = self.client.select(PAYROLL_TABLE).await?;
-        records.into_iter().map(record_to_domain).collect()
+        records
+            .into_iter()
+            .filter(|record| record.organization_id == organization_id.to_string())
+            .map(record_to_domain)
+            .collect()
     }
 
     async fn update(
@@ -77,9 +81,8 @@ where
         id: Uuid,
         name: Option<String>,
         description: Option<String>,
-        organization_id: Option<Uuid>,
     ) -> AppResult<Option<Payroll>> {
-        let payload = build_update_payload(name, description, organization_id)?;
+        let payload = build_update_payload(name, description)?;
         let record: Option<PayrollRecord> = self
             .client
             .update((PAYROLL_TABLE, id.to_string()))
@@ -128,11 +131,7 @@ fn record_to_domain(record: PayrollRecord) -> AppResult<Payroll> {
     ))
 }
 
-fn build_update_payload(
-    name: Option<String>,
-    description: Option<String>,
-    organization_id: Option<Uuid>,
-) -> AppResult<JsonValue> {
+fn build_update_payload(name: Option<String>, description: Option<String>) -> AppResult<JsonValue> {
     let mut object = Map::new();
 
     if let Some(name) = name {
@@ -141,13 +140,6 @@ fn build_update_payload(
 
     if let Some(description) = description {
         object.insert("description".to_string(), JsonValue::String(description));
-    }
-
-    if let Some(organization_id) = organization_id {
-        object.insert(
-            "organization_id".to_string(),
-            JsonValue::String(organization_id.to_string()),
-        );
     }
 
     if object.is_empty() {
