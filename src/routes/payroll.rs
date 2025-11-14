@@ -12,7 +12,7 @@ pub fn router() -> Router<AppState> {
             post(handlers::payroll::create).get(handlers::payroll::list),
         )
         .route(
-            "/payrolls/:id",
+            "/payrolls/{id}",
             get(handlers::payroll::get)
                 .put(handlers::payroll::update)
                 .delete(handlers::payroll::delete),
