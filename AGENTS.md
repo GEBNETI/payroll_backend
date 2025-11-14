@@ -6,11 +6,17 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 ## Application Architecture
 - `src/main.rs` bootstraps configuration, networking, and delegates to `server::run`.
 - `src/lib.rs` exposes high-level modules: `server`, `routes`, `handlers`, `domain`, `services`, `infrastructure`, `middleware`, `extractors`, and `error`.
-- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`).
+- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` currently wires the Organization, Payroll, and Division services so handlers can enforce cross-entity invariants.
 - `src/routes/` defines small, composable routers per feature (e.g., `routes::health`) that only wire HTTP paths.
 - `src/handlers/` contains request/response logic (`handlers::health::check`) and converts domain data into transport-friendly payloads.
 - `src/domain/` hosts pure business types and helpers (`domain::health::HealthSnapshot`) with no Axum dependencies.
 - `src/services/`, `src/infrastructure/`, `src/middleware/`, `src/extractors/`, and `src/error.rs` are reserved for orchestration, adapters, tower layers, custom extractors, and shared error mappers respectively as features grow.
+
+### REST resources (current)
+- `/health` — basic service metadata probe.
+- `/organizations` — CRUD for organizations.
+- `/payrolls` — CRUD for payrolls (must reference an organization).
+- `/divisions` — CRUD for divisions (must reference a payroll; optional `parent_division_id` enforces same-payroll adjacency).
 
 ## Build, Test, and Development Commands
 - `cargo check` — fast validation of the codebase before committing.
@@ -24,6 +30,17 @@ Adhere to Rust’s default 4-space indentation and keep functions short with des
 
 ## Testing Guidelines
 Unit tests stay close to the code they verify using `#[cfg(test)]` modules, while scenario tests reside in `tests/` with filenames that mirror the behavior under test (e.g., `tests/payroll_totals.rs`). Strive for meaningful assertions instead of snapshot dumps. When adding features, include regression tests demonstrating the expected inputs and outputs; new modules should ship with at least one happy-path test and one edge-case test. Document any required environment variables at the top of each test file.
+
+### Environment variables
+The server expects a reachable SurrealDB instance configured via:
+
+- `SURREALDB_URL`
+- `SURREALDB_NAMESPACE`
+- `SURREALDB_DATABASE`
+- `SURREALDB_USERNAME`
+- `SURREALDB_PASSWORD`
+
+When writing new integration tests, prefer the in-memory repositories under `tests/support` to avoid external DB dependencies.
 
 ## Commit & Pull Request Guidelines
 Follow Conventional Commits (e.g., `feat: add overtime calculator`) so change logs remain machine-readable. Each commit should bundle related work only—split refactors from feature code. Pull requests must describe the problem, the approach, and testing evidence (`cargo test`, manual steps, screenshots when applicable). Reference relevant issues in the PR description using `Fixes #ID`. Request review only after CI is green and conflicts are resolved.
