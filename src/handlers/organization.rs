@@ -64,7 +64,8 @@ impl UpdateOrganizationRequest {
     responses(
         (status = 201, description = "Organization created", body = OrganizationResponse)
     ),
-    tag = "Organizations"
+    tag = "Organizations",
+    operation_id = "create_organization"
 )]
 pub async fn create(
     State(state): State<AppState>,
@@ -84,7 +85,8 @@ pub async fn create(
     responses(
         (status = 200, description = "List organizations", body = [OrganizationResponse])
     ),
-    tag = "Organizations"
+    tag = "Organizations",
+    operation_id = "list_organizations"
 )]
 pub async fn list(State(state): State<AppState>) -> AppResult<Json<Vec<OrganizationResponse>>> {
     let organizations = state.organization_service().list().await?;
@@ -103,7 +105,8 @@ pub async fn list(State(state): State<AppState>) -> AppResult<Json<Vec<Organizat
         (status = 200, description = "Get organization", body = OrganizationResponse),
         (status = 404, description = "Organization not found")
     ),
-    tag = "Organizations"
+    tag = "Organizations",
+    operation_id = "get_organization"
 )]
 pub async fn get(
     State(state): State<AppState>,
@@ -128,7 +131,8 @@ pub async fn get(
         (status = 200, description = "Organization updated", body = OrganizationResponse),
         (status = 404, description = "Organization not found")
     ),
-    tag = "Organizations"
+    tag = "Organizations",
+    operation_id = "update_organization"
 )]
 pub async fn update(
     State(state): State<AppState>,
@@ -153,7 +157,8 @@ pub async fn update(
         (status = 204, description = "Organization deleted"),
         (status = 404, description = "Organization not found")
     ),
-    tag = "Organizations"
+    tag = "Organizations",
+    operation_id = "delete_organization"
 )]
 pub async fn delete(
     State(state): State<AppState>,

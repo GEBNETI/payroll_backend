@@ -29,4 +29,16 @@ async fn openapi_document_is_available() {
 
     assert_eq!(body["info"]["title"], env!("CARGO_PKG_NAME"));
     assert_eq!(body["info"]["version"], env!("CARGO_PKG_VERSION"));
+
+    for path in [
+        "/organizations/{organization_id}/payrolls",
+        "/organizations/{organization_id}/payrolls/{payroll_id}",
+        "/organizations/{organization_id}/payrolls/{payroll_id}/divisions",
+        "/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}",
+    ] {
+        assert!(
+            body["paths"].get(path).is_some(),
+            "missing path {path} in OpenAPI document"
+        );
+    }
 }

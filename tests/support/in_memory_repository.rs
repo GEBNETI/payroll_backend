@@ -77,8 +77,15 @@ impl PayrollRepository for InMemoryPayrollRepository {
         Ok(self.store.read().await.get(&id).cloned())
     }
 
-    async fn fetch_all(&self) -> AppResult<Vec<Payroll>> {
-        Ok(self.store.read().await.values().cloned().collect())
+    async fn fetch_by_organization(&self, organization_id: Uuid) -> AppResult<Vec<Payroll>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|payroll| payroll.organization_id == organization_id)
+            .cloned()
+            .collect())
     }
 
     async fn update(
@@ -86,7 +93,6 @@ impl PayrollRepository for InMemoryPayrollRepository {
         id: Uuid,
         name: Option<String>,
         description: Option<String>,
-        organization_id: Option<Uuid>,
     ) -> AppResult<Option<Payroll>> {
         let mut guard = self.store.write().await;
         if let Some(existing) = guard.get_mut(&id) {
@@ -95,9 +101,6 @@ impl PayrollRepository for InMemoryPayrollRepository {
             }
             if let Some(description) = description {
                 existing.description = description;
-            }
-            if let Some(organization_id) = organization_id {
-                existing.organization_id = organization_id;
             }
 
             return Ok(Some(existing.clone()));
@@ -146,8 +149,15 @@ impl DivisionRepository for InMemoryDivisionRepository {
         Ok(self.store.read().await.get(&id).cloned())
     }
 
-    async fn fetch_all(&self) -> AppResult<Vec<Division>> {
-        Ok(self.store.read().await.values().cloned().collect())
+    async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<Division>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|division| division.payroll_id == payroll_id)
+            .cloned()
+            .collect())
     }
 
     async fn update(
@@ -156,7 +166,6 @@ impl DivisionRepository for InMemoryDivisionRepository {
         name: Option<String>,
         description: Option<String>,
         budget_code: Option<String>,
-        payroll_id: Option<Uuid>,
         parent_division_id: Option<Option<Uuid>>,
     ) -> AppResult<Option<Division>> {
         let mut guard = self.store.write().await;
@@ -169,9 +178,6 @@ impl DivisionRepository for InMemoryDivisionRepository {
             }
             if let Some(budget_code) = budget_code {
                 existing.budget_code = budget_code;
-            }
-            if let Some(payroll_id) = payroll_id {
-                existing.payroll_id = payroll_id;
             }
             if let Some(parent) = parent_division_id {
                 existing.parent_division_id = parent;

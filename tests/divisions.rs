@@ -40,13 +40,12 @@ async fn create_payroll(app: &Router, organization_id: Uuid) -> Uuid {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/payrolls")
+                .uri(format!("/organizations/{organization_id}/payrolls"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
                         "name": "May",
-                        "description": "Monthly",
-                        "organization_id": organization_id,
+                        "description": "Monthly"
                     })
                     .to_string(),
                 ))
@@ -62,6 +61,7 @@ async fn create_payroll(app: &Router, organization_id: Uuid) -> Uuid {
 
 async fn create_division(
     app: &Router,
+    organization_id: Uuid,
     payroll_id: Uuid,
     name: &str,
     parent: Option<Uuid>,
@@ -71,14 +71,15 @@ async fn create_division(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/divisions")
+                .uri(format!(
+                    "/organizations/{organization_id}/payrolls/{payroll_id}/divisions"
+                ))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
                         "name": name,
                         "description": format!("Desc {name}"),
                         "budget_code": format!("BC-{name}"),
-                        "payroll_id": payroll_id,
                         "parent_division_id": parent,
                     })
                     .to_string(),
@@ -98,11 +99,12 @@ async fn can_create_and_list_divisions() {
     let org = create_organization(&app).await;
     let payroll = create_payroll(&app, org).await;
 
-    let parent = create_division(&app, payroll, "Parent", None).await;
+    let parent = create_division(&app, org, payroll, "Parent", None).await;
     let parent_id = parent["id"].as_str().unwrap();
 
     let child = create_division(
         &app,
+        org,
         payroll,
         "Child",
         Some(Uuid::parse_str(parent_id).unwrap()),
@@ -114,7 +116,7 @@ async fn can_create_and_list_divisions() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/divisions")
+                .uri(format!("/organizations/{org}/payrolls/{payroll}/divisions"))
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -139,14 +141,16 @@ async fn rejects_invalid_parent_or_payroll() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/divisions")
+                .uri(format!(
+                    "/organizations/{org}/payrolls/{}/divisions",
+                    Uuid::new_v4()
+                ))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
                         "name": "Invalid",
                         "description": "desc",
                         "budget_code": "BC",
-                        "payroll_id": Uuid::new_v4(),
                     })
                     .to_string(),
                 ))
@@ -157,7 +161,7 @@ async fn rejects_invalid_parent_or_payroll() {
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 
-    let parent = create_division(&app, payroll_a, "Parent", None).await;
+    let parent = create_division(&app, org, payroll_a, "Parent", None).await;
     let parent_id = Uuid::parse_str(parent["id"].as_str().unwrap()).unwrap();
 
     // Parent must belong to same payroll
@@ -166,14 +170,15 @@ async fn rejects_invalid_parent_or_payroll() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/divisions")
+                .uri(format!(
+                    "/organizations/{org}/payrolls/{payroll_b}/divisions"
+                ))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
                         "name": "Bad",
                         "description": "desc",
                         "budget_code": "BC",
-                        "payroll_id": payroll_b,
                         "parent_division_id": parent_id,
                     })
                     .to_string(),
@@ -192,10 +197,11 @@ async fn can_update_and_clear_parent() {
     let org = create_organization(&app).await;
     let payroll = create_payroll(&app, org).await;
 
-    let parent = create_division(&app, payroll, "Parent", None).await;
+    let parent = create_division(&app, org, payroll, "Parent", None).await;
     let parent_id = parent["id"].as_str().unwrap();
     let child = create_division(
         &app,
+        org,
         payroll,
         "Child",
         Some(Uuid::parse_str(parent_id).unwrap()),
@@ -209,7 +215,9 @@ async fn can_update_and_clear_parent() {
         .oneshot(
             Request::builder()
                 .method("PUT")
-                .uri(format!("/divisions/{child_id}"))
+                .uri(format!(
+                    "/organizations/{org}/payrolls/{payroll}/divisions/{child_id}"
+                ))
                 .header("content-type", "application/json")
                 .body(Body::from(json!({"parent_division_id": null}).to_string()))
                 .expect("request"),
@@ -227,7 +235,9 @@ async fn can_update_and_clear_parent() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri(format!("/divisions/{child_id}"))
+                .uri(format!(
+                    "/organizations/{org}/payrolls/{payroll}/divisions/{child_id}"
+                ))
                 .body(Body::empty())
                 .expect("request"),
         )

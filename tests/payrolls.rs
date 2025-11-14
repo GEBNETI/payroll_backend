@@ -45,13 +45,12 @@ async fn can_create_and_list_payrolls() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/payrolls")
+                .uri(format!("/organizations/{organization_id}/payrolls"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
                         "name": "May 2024",
-                        "description": "Monthly payroll",
-                        "organization_id": organization_id,
+                        "description": "Monthly payroll"
                     })
                     .to_string(),
                 ))
@@ -68,7 +67,7 @@ async fn can_create_and_list_payrolls() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/payrolls")
+                .uri(format!("/organizations/{organization_id}/payrolls"))
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -89,13 +88,12 @@ async fn rejects_invalid_organization_reference() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/payrolls")
+                .uri(format!("/organizations/{}/payrolls", Uuid::new_v4()))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
                         "name": "Invalid",
-                        "description": "bad",
-                        "organization_id": Uuid::new_v4(),
+                        "description": "bad"
                     })
                     .to_string(),
                 ))
@@ -117,13 +115,12 @@ async fn can_update_and_delete_payroll() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/payrolls")
+                .uri(format!("/organizations/{organization_id}/payrolls"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
                         "name": "June",
-                        "description": "June payroll",
-                        "organization_id": organization_id,
+                        "description": "June payroll"
                     })
                     .to_string(),
                 ))
@@ -140,7 +137,9 @@ async fn can_update_and_delete_payroll() {
         .oneshot(
             Request::builder()
                 .method("PUT")
-                .uri(format!("/payrolls/{payroll_id}"))
+                .uri(format!(
+                    "/organizations/{organization_id}/payrolls/{payroll_id}"
+                ))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
@@ -163,7 +162,9 @@ async fn can_update_and_delete_payroll() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri(format!("/payrolls/{payroll_id}"))
+                .uri(format!(
+                    "/organizations/{organization_id}/payrolls/{payroll_id}"
+                ))
                 .body(Body::empty())
                 .expect("request"),
         )
@@ -176,7 +177,9 @@ async fn can_update_and_delete_payroll() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri(format!("/payrolls/{payroll_id}"))
+                .uri(format!(
+                    "/organizations/{organization_id}/payrolls/{payroll_id}"
+                ))
                 .body(Body::empty())
                 .expect("request"),
         )

@@ -14,7 +14,6 @@ pub struct CreateDivisionParams {
     pub name: String,
     pub description: String,
     pub budget_code: String,
-    pub payroll_id: Uuid,
     pub parent_division_id: Option<Uuid>,
 }
 
@@ -23,7 +22,6 @@ pub struct UpdateDivisionParams {
     pub name: Option<String>,
     pub description: Option<String>,
     pub budget_code: Option<String>,
-    pub payroll_id: Option<Uuid>,
     pub parent_division_id: Option<Option<Uuid>>,
 }
 
@@ -41,7 +39,7 @@ pub trait DivisionRepository: Send + Sync {
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<Division>>;
 
-    async fn fetch_all(&self) -> AppResult<Vec<Division>>;
+    async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<Division>>;
 
     async fn update(
         &self,
@@ -49,7 +47,6 @@ pub trait DivisionRepository: Send + Sync {
         name: Option<String>,
         description: Option<String>,
         budget_code: Option<String>,
-        payroll_id: Option<Uuid>,
         parent_division_id: Option<Option<Uuid>>,
     ) -> AppResult<Option<Division>>;
 
@@ -73,13 +70,19 @@ impl DivisionService {
         }
     }
 
-    pub async fn create(&self, params: CreateDivisionParams) -> AppResult<Division> {
+    pub async fn create(
+        &self,
+        organization_id: Uuid,
+        payroll_id: Uuid,
+        params: CreateDivisionParams,
+    ) -> AppResult<Division> {
         let name = Self::normalize_field(&params.name, "division name")?;
         let description = Self::normalize_field(&params.description, "division description")?;
         let budget_code = Self::normalize_field(&params.budget_code, "division budget code")?;
-        self.ensure_payroll_exists(params.payroll_id).await?;
+        self.ensure_payroll_accessible(organization_id, payroll_id)
+            .await?;
         let parent_division_id = self
-            .validate_parent(params.parent_division_id, Some(params.payroll_id), None)
+            .validate_parent(params.parent_division_id, payroll_id, None)
             .await?;
 
         let id = Uuid::new_v4();
@@ -89,58 +92,58 @@ impl DivisionService {
                 name,
                 description,
                 budget_code,
-                params.payroll_id,
+                payroll_id,
                 parent_division_id,
             )
             .await
     }
 
-    pub async fn get(&self, id: Uuid) -> AppResult<Option<Division>> {
-        self.repository.fetch(id).await
+    pub async fn get(
+        &self,
+        organization_id: Uuid,
+        payroll_id: Uuid,
+        division_id: Uuid,
+    ) -> AppResult<Option<Division>> {
+        self.ensure_payroll_accessible(organization_id, payroll_id)
+            .await?;
+        let division = self.repository.fetch(division_id).await?;
+        Ok(division.filter(|division| division.payroll_id == payroll_id))
     }
 
-    pub async fn list(&self) -> AppResult<Vec<Division>> {
-        let mut divisions = self.repository.fetch_all().await?;
+    pub async fn list(&self, organization_id: Uuid, payroll_id: Uuid) -> AppResult<Vec<Division>> {
+        self.ensure_payroll_accessible(organization_id, payroll_id)
+            .await?;
+        let mut divisions = self.repository.fetch_by_payroll(payroll_id).await?;
         divisions.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(divisions)
     }
 
     pub async fn update(
         &self,
-        id: Uuid,
+        organization_id: Uuid,
+        payroll_id: Uuid,
+        division_id: Uuid,
         params: UpdateDivisionParams,
     ) -> AppResult<Option<Division>> {
         if params.name.is_none()
             && params.description.is_none()
             && params.budget_code.is_none()
-            && params.payroll_id.is_none()
             && params.parent_division_id.is_none()
         {
             return Err(AppError::validation("no fields supplied for update"));
         }
 
-        let existing = match self.repository.fetch(id).await? {
-            Some(division) => division,
-            None => return Ok(None),
-        };
-
-        if let Some(payroll_id) = params.payroll_id {
-            self.ensure_payroll_exists(payroll_id).await?;
-        }
-
-        let target_payroll_id = params.payroll_id.unwrap_or(existing.payroll_id);
-
-        if params.parent_division_id.is_none()
-            && params.payroll_id.is_some()
-            && let Some(current_parent) = existing.parent_division_id
+        if self
+            .get(organization_id, payroll_id, division_id)
+            .await?
+            .is_none()
         {
-            self.validate_parent(Some(current_parent), Some(target_payroll_id), Some(id))
-                .await?;
+            return Ok(None);
         }
 
         let parent_update = match params.parent_division_id {
             Some(parent_field) => Some(
-                self.validate_parent(parent_field, Some(target_payroll_id), Some(id))
+                self.validate_parent(parent_field, payroll_id, Some(division_id))
                     .await?,
             ),
             None => None,
@@ -163,36 +166,41 @@ impl DivisionService {
             .transpose()?;
 
         self.repository
-            .update(
-                id,
-                name,
-                description,
-                budget_code,
-                params.payroll_id,
-                parent_update,
-            )
+            .update(division_id, name, description, budget_code, parent_update)
             .await
     }
 
-    pub async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        self.repository.delete(id).await
+    pub async fn delete(
+        &self,
+        organization_id: Uuid,
+        payroll_id: Uuid,
+        division_id: Uuid,
+    ) -> AppResult<bool> {
+        if self
+            .get(organization_id, payroll_id, division_id)
+            .await?
+            .is_none()
+        {
+            return Ok(false);
+        }
+
+        self.repository.delete(division_id).await
     }
 
-    async fn ensure_payroll_exists(&self, payroll_id: Uuid) -> AppResult<()> {
-        let exists = self.payroll_service.get(payroll_id).await?.is_some();
-        if exists {
-            Ok(())
-        } else {
-            Err(AppError::not_found(format!(
-                "payroll `{payroll_id}` not found"
-            )))
-        }
+    async fn ensure_payroll_accessible(
+        &self,
+        organization_id: Uuid,
+        payroll_id: Uuid,
+    ) -> AppResult<()> {
+        self.payroll_service
+            .ensure_belongs_to_organization(organization_id, payroll_id)
+            .await
     }
 
     async fn validate_parent(
         &self,
         parent_division_id: Option<Uuid>,
-        target_payroll_id: Option<Uuid>,
+        target_payroll_id: Uuid,
         division_id: Option<Uuid>,
     ) -> AppResult<Option<Uuid>> {
         if let Some(parent_id) = parent_division_id {
@@ -204,9 +212,7 @@ impl DivisionService {
                 AppError::not_found(format!("parent division `{parent_id}` not found"))
             })?;
 
-            if let Some(target_payroll) = target_payroll_id
-                && parent.payroll_id != target_payroll
-            {
+            if parent.payroll_id != target_payroll_id {
                 return Err(AppError::validation(
                     "parent division must belong to the same payroll",
                 ));

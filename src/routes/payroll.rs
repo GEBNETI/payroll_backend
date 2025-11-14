@@ -8,11 +8,11 @@ use crate::{handlers, server::AppState};
 pub fn router() -> Router<AppState> {
     Router::<AppState>::new()
         .route(
-            "/payrolls",
+            "/organizations/{organization_id}/payrolls",
             post(handlers::payroll::create).get(handlers::payroll::list),
         )
         .route(
-            "/payrolls/{id}",
+            "/organizations/{organization_id}/payrolls/{payroll_id}",
             get(handlers::payroll::get)
                 .put(handlers::payroll::update)
                 .delete(handlers::payroll::delete),

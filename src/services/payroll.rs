@@ -13,14 +13,12 @@ use crate::{
 pub struct CreatePayrollParams {
     pub name: String,
     pub description: String,
-    pub organization_id: Uuid,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePayrollParams {
     pub name: Option<String>,
     pub description: Option<String>,
-    pub organization_id: Option<Uuid>,
 }
 
 #[async_trait]
@@ -35,14 +33,13 @@ pub trait PayrollRepository: Send + Sync {
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<Payroll>>;
 
-    async fn fetch_all(&self) -> AppResult<Vec<Payroll>>;
+    async fn fetch_by_organization(&self, organization_id: Uuid) -> AppResult<Vec<Payroll>>;
 
     async fn update(
         &self,
         id: Uuid,
         name: Option<String>,
         description: Option<String>,
-        organization_id: Option<Uuid>,
     ) -> AppResult<Option<Payroll>>;
 
     async fn delete(&self, id: Uuid) -> AppResult<bool>;
@@ -65,39 +62,47 @@ impl PayrollService {
         }
     }
 
-    pub async fn create(&self, params: CreatePayrollParams) -> AppResult<Payroll> {
+    pub async fn create(
+        &self,
+        organization_id: Uuid,
+        params: CreatePayrollParams,
+    ) -> AppResult<Payroll> {
         let name = Self::normalize_name(&params.name)?;
         let description = Self::normalize_description(&params.description)?;
-        self.ensure_organization_exists(params.organization_id)
-            .await?;
+        self.ensure_organization_exists(organization_id).await?;
         let id = Uuid::new_v4();
         self.repository
-            .insert(id, name, description, params.organization_id)
+            .insert(id, name, description, organization_id)
             .await
     }
 
-    pub async fn get(&self, id: Uuid) -> AppResult<Option<Payroll>> {
-        self.repository.fetch(id).await
+    pub async fn get(&self, organization_id: Uuid, payroll_id: Uuid) -> AppResult<Option<Payroll>> {
+        let payroll = self.repository.fetch(payroll_id).await?;
+        Ok(payroll.filter(|payroll| payroll.organization_id == organization_id))
     }
 
-    pub async fn list(&self) -> AppResult<Vec<Payroll>> {
-        let mut payrolls = self.repository.fetch_all().await?;
+    pub async fn list(&self, organization_id: Uuid) -> AppResult<Vec<Payroll>> {
+        self.ensure_organization_exists(organization_id).await?;
+        let mut payrolls = self
+            .repository
+            .fetch_by_organization(organization_id)
+            .await?;
         payrolls.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(payrolls)
     }
 
     pub async fn update(
         &self,
-        id: Uuid,
+        organization_id: Uuid,
+        payroll_id: Uuid,
         params: UpdatePayrollParams,
     ) -> AppResult<Option<Payroll>> {
-        if params.name.is_none() && params.description.is_none() && params.organization_id.is_none()
-        {
+        if params.name.is_none() && params.description.is_none() {
             return Err(AppError::validation("no fields supplied for update"));
         }
 
-        if let Some(organization_id) = params.organization_id {
-            self.ensure_organization_exists(organization_id).await?;
+        if self.get(organization_id, payroll_id).await?.is_none() {
+            return Ok(None);
         }
 
         let name = params
@@ -111,13 +116,29 @@ impl PayrollService {
             .map(Self::normalize_description)
             .transpose()?;
 
-        self.repository
-            .update(id, name, description, params.organization_id)
-            .await
+        self.repository.update(payroll_id, name, description).await
     }
 
-    pub async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        self.repository.delete(id).await
+    pub async fn delete(&self, organization_id: Uuid, payroll_id: Uuid) -> AppResult<bool> {
+        if self.get(organization_id, payroll_id).await?.is_none() {
+            return Ok(false);
+        }
+
+        self.repository.delete(payroll_id).await
+    }
+
+    pub async fn ensure_belongs_to_organization(
+        &self,
+        organization_id: Uuid,
+        payroll_id: Uuid,
+    ) -> AppResult<()> {
+        if self.get(organization_id, payroll_id).await?.is_some() {
+            Ok(())
+        } else {
+            Err(AppError::not_found(format!(
+                "payroll `{payroll_id}` not found for organization `{organization_id}`"
+            )))
+        }
     }
 
     async fn ensure_organization_exists(&self, organization_id: Uuid) -> AppResult<()> {
