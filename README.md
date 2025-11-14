@@ -31,6 +31,13 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | PUT    | `/divisions/:id`   | Update division fields / parent |
 | DELETE | `/divisions/:id`   | Delete division |
 
+## API Documentation
+
+- OpenAPI document: `GET /api-docs/openapi.json`
+- Interactive Swagger UI: visit `http://localhost:3000/swagger-ui` after running `cargo run` with the required SurrealDB environment variables configured.
+
+The documentation stays in sync with the handlers using `utoipa`, so request/response schemas and parameters are always up to date.
+
 ## Environment Variables
 
 | Variable | Description |
