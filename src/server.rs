@@ -6,12 +6,14 @@ use tokio::net::TcpListener;
 
 use crate::{
     infrastructure::{
+        division_repository::SurrealAnyDivisionRepository,
         organization_repository::SurrealAnyOrganizationRepository,
         payroll_repository::SurrealAnyPayrollRepository,
         surreal::{self, SurrealConfig, SurrealConfigError},
     },
     routes,
     services::{
+        division::DivisionService,
         organization::{self, OrganizationService},
         payroll::PayrollService,
     },
@@ -34,16 +36,19 @@ pub fn router(state: AppState) -> Router {
 pub struct AppState {
     organization_service: Arc<OrganizationService>,
     payroll_service: Arc<PayrollService>,
+    division_service: Arc<DivisionService>,
 }
 
 impl AppState {
     pub fn new(
         organization_service: Arc<OrganizationService>,
         payroll_service: Arc<PayrollService>,
+        division_service: Arc<DivisionService>,
     ) -> Self {
         Self {
             organization_service,
             payroll_service,
+            division_service,
         }
     }
 
@@ -55,6 +60,10 @@ impl AppState {
         Arc::clone(&self.payroll_service)
     }
 
+    pub fn division_service(&self) -> Arc<DivisionService> {
+        Arc::clone(&self.division_service)
+    }
+
     pub async fn initialize() -> Result<Self, ServerSetupError> {
         let config = SurrealConfig::from_env()?;
         let client = surreal::connect(&config).await?;
@@ -64,13 +73,24 @@ impl AppState {
         let organization_service = Arc::new(OrganizationService::new(organization_repository));
 
         let payroll_repository: Arc<dyn crate::services::payroll::PayrollRepository> =
-            Arc::new(SurrealAnyPayrollRepository::new(client));
+            Arc::new(SurrealAnyPayrollRepository::new(client.clone()));
         let payroll_service = Arc::new(PayrollService::new(
             payroll_repository,
             Arc::clone(&organization_service),
         ));
 
-        Ok(Self::new(organization_service, payroll_service))
+        let division_repository: Arc<dyn crate::services::division::DivisionRepository> =
+            Arc::new(SurrealAnyDivisionRepository::new(client));
+        let division_service = Arc::new(DivisionService::new(
+            division_repository,
+            Arc::clone(&payroll_service),
+        ));
+
+        Ok(Self::new(
+            organization_service,
+            payroll_service,
+            division_service,
+        ))
     }
 }
 
