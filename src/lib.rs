@@ -4,6 +4,7 @@ pub mod extractors;
 pub mod handlers;
 pub mod infrastructure;
 pub mod middleware;
+pub mod openapi;
 pub mod routes;
 pub mod server;
 pub mod services;

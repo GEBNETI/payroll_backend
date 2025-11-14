@@ -4,6 +4,7 @@ use axum::{
     http::StatusCode,
 };
 use serde::{Deserialize, Deserializer, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
     services::division::{CreateDivisionParams, UpdateDivisionParams},
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateDivisionRequest {
     pub name: String,
     pub description: String,
@@ -22,17 +23,18 @@ pub struct CreateDivisionRequest {
     pub parent_division_id: Option<Uuid>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateDivisionRequest {
     pub name: Option<String>,
     pub description: Option<String>,
     pub budget_code: Option<String>,
     pub payroll_id: Option<Uuid>,
     #[serde(default, deserialize_with = "deserialize_option_option")]
+    #[schema(value_type = Option<Uuid>)]
     pub parent_division_id: Option<Option<Uuid>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct DivisionResponse {
     pub id: Uuid,
     pub name: String,
@@ -40,6 +42,12 @@ pub struct DivisionResponse {
     pub budget_code: String,
     pub payroll_id: Uuid,
     pub parent_division_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+pub struct DivisionPathParams {
+    pub id: Uuid,
 }
 
 impl From<Division> for DivisionResponse {
@@ -86,6 +94,15 @@ where
     Ok(Some(Option::deserialize(deserializer)?))
 }
 
+#[utoipa::path(
+    post,
+    path = "/divisions",
+    request_body = CreateDivisionRequest,
+    responses(
+        (status = 201, description = "Division created", body = DivisionResponse)
+    ),
+    tag = "Divisions"
+)]
 pub async fn create(
     State(state): State<AppState>,
     Json(payload): Json<CreateDivisionRequest>,
@@ -98,16 +115,35 @@ pub async fn create(
     Ok((StatusCode::CREATED, Json(division.into())))
 }
 
+#[utoipa::path(
+    get,
+    path = "/divisions",
+    responses(
+        (status = 200, description = "List divisions", body = [DivisionResponse])
+    ),
+    tag = "Divisions"
+)]
 pub async fn list(State(state): State<AppState>) -> AppResult<Json<Vec<DivisionResponse>>> {
     let divisions = state.division_service().list().await?;
     let response = divisions.into_iter().map(DivisionResponse::from).collect();
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    get,
+    path = "/divisions/{id}",
+    params(DivisionPathParams),
+    responses(
+        (status = 200, description = "Get division", body = DivisionResponse),
+        (status = 404, description = "Division not found")
+    ),
+    tag = "Divisions"
+)]
 pub async fn get(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    Path(params): Path<DivisionPathParams>,
 ) -> AppResult<Json<DivisionResponse>> {
+    let id = params.id;
     let division = state
         .division_service()
         .get(id)
@@ -117,11 +153,23 @@ pub async fn get(
     Ok(Json(division.into()))
 }
 
+#[utoipa::path(
+    put,
+    path = "/divisions/{id}",
+    params(DivisionPathParams),
+    request_body = UpdateDivisionRequest,
+    responses(
+        (status = 200, description = "Division updated", body = DivisionResponse),
+        (status = 404, description = "Division not found")
+    ),
+    tag = "Divisions"
+)]
 pub async fn update(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    Path(params): Path<DivisionPathParams>,
     Json(payload): Json<UpdateDivisionRequest>,
 ) -> AppResult<Json<DivisionResponse>> {
+    let id = params.id;
     let division = state
         .division_service()
         .update(id, payload.into_params())
@@ -131,7 +179,21 @@ pub async fn update(
     Ok(Json(division.into()))
 }
 
-pub async fn delete(State(state): State<AppState>, Path(id): Path<Uuid>) -> AppResult<StatusCode> {
+#[utoipa::path(
+    delete,
+    path = "/divisions/{id}",
+    params(DivisionPathParams),
+    responses(
+        (status = 204, description = "Division deleted"),
+        (status = 404, description = "Division not found")
+    ),
+    tag = "Divisions"
+)]
+pub async fn delete(
+    State(state): State<AppState>,
+    Path(params): Path<DivisionPathParams>,
+) -> AppResult<StatusCode> {
+    let id = params.id;
     let removed = state.division_service().delete(id).await?;
 
     if removed {

@@ -4,6 +4,7 @@ use axum::{
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::{
@@ -13,20 +14,26 @@ use crate::{
     services::organization::{CreateOrganizationParams, UpdateOrganizationParams},
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateOrganizationRequest {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateOrganizationRequest {
     pub name: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OrganizationResponse {
     pub id: Uuid,
     pub name: String,
+}
+
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+pub struct OrganizationPathParams {
+    pub id: Uuid,
 }
 
 impl From<Organization> for OrganizationResponse {
@@ -50,6 +57,15 @@ impl UpdateOrganizationRequest {
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/organizations",
+    request_body = CreateOrganizationRequest,
+    responses(
+        (status = 201, description = "Organization created", body = OrganizationResponse)
+    ),
+    tag = "Organizations"
+)]
 pub async fn create(
     State(state): State<AppState>,
     Json(payload): Json<CreateOrganizationRequest>,
@@ -62,6 +78,14 @@ pub async fn create(
     Ok((StatusCode::CREATED, Json(organization.into())))
 }
 
+#[utoipa::path(
+    get,
+    path = "/organizations",
+    responses(
+        (status = 200, description = "List organizations", body = [OrganizationResponse])
+    ),
+    tag = "Organizations"
+)]
 pub async fn list(State(state): State<AppState>) -> AppResult<Json<Vec<OrganizationResponse>>> {
     let organizations = state.organization_service().list().await?;
     let response = organizations
@@ -71,10 +95,21 @@ pub async fn list(State(state): State<AppState>) -> AppResult<Json<Vec<Organizat
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    get,
+    path = "/organizations/{id}",
+    params(OrganizationPathParams),
+    responses(
+        (status = 200, description = "Get organization", body = OrganizationResponse),
+        (status = 404, description = "Organization not found")
+    ),
+    tag = "Organizations"
+)]
 pub async fn get(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    Path(params): Path<OrganizationPathParams>,
 ) -> AppResult<Json<OrganizationResponse>> {
+    let id = params.id;
     let organization = state
         .organization_service()
         .get(id)
@@ -84,11 +119,23 @@ pub async fn get(
     Ok(Json(organization.into()))
 }
 
+#[utoipa::path(
+    put,
+    path = "/organizations/{id}",
+    params(OrganizationPathParams),
+    request_body = UpdateOrganizationRequest,
+    responses(
+        (status = 200, description = "Organization updated", body = OrganizationResponse),
+        (status = 404, description = "Organization not found")
+    ),
+    tag = "Organizations"
+)]
 pub async fn update(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    Path(params): Path<OrganizationPathParams>,
     Json(payload): Json<UpdateOrganizationRequest>,
 ) -> AppResult<Json<OrganizationResponse>> {
+    let id = params.id;
     let organization = state
         .organization_service()
         .update(id, payload.into_params())
@@ -98,7 +145,21 @@ pub async fn update(
     Ok(Json(organization.into()))
 }
 
-pub async fn delete(State(state): State<AppState>, Path(id): Path<Uuid>) -> AppResult<StatusCode> {
+#[utoipa::path(
+    delete,
+    path = "/organizations/{id}",
+    params(OrganizationPathParams),
+    responses(
+        (status = 204, description = "Organization deleted"),
+        (status = 404, description = "Organization not found")
+    ),
+    tag = "Organizations"
+)]
+pub async fn delete(
+    State(state): State<AppState>,
+    Path(params): Path<OrganizationPathParams>,
+) -> AppResult<StatusCode> {
+    let id = params.id;
     let removed = state.organization_service().delete(id).await?;
 
     if removed {

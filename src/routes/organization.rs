@@ -12,7 +12,7 @@ pub fn router() -> Router<AppState> {
             post(handlers::organization::create).get(handlers::organization::list),
         )
         .route(
-            "/organizations/:id",
+            "/organizations/{id}",
             get(handlers::organization::get)
                 .put(handlers::organization::update)
                 .delete(handlers::organization::delete),
