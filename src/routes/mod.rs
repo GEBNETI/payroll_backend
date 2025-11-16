@@ -6,6 +6,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{openapi::ApiDoc, server::AppState};
 
+pub mod bank;
 pub mod division;
 pub mod health;
 pub mod job;
@@ -21,6 +22,7 @@ pub fn app_router(state: AppState) -> Router {
         .merge(payroll::router())
         .merge(job::router())
         .merge(division::router())
+        .merge(bank::router())
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi))
         .layer(
             TraceLayer::new_for_http()

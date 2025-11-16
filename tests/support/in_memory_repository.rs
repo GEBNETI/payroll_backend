@@ -5,17 +5,24 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use nomina::{
-    domain::{division::Division, job::Job, organization::Organization, payroll::Payroll},
+    domain::{
+        bank::Bank, division::Division, job::Job, organization::Organization, payroll::Payroll,
+    },
     error::AppResult,
     services::{
-        division::DivisionRepository, job::JobRepository, organization::OrganizationRepository,
-        payroll::PayrollRepository,
+        bank::BankRepository, division::DivisionRepository, job::JobRepository,
+        organization::OrganizationRepository, payroll::PayrollRepository,
     },
 };
 
 #[derive(Default)]
 pub struct InMemoryOrganizationRepository {
     store: RwLock<HashMap<Uuid, Organization>>,
+}
+
+#[derive(Default)]
+pub struct InMemoryBankRepository {
+    store: RwLock<HashMap<Uuid, Bank>>,
 }
 
 #[async_trait]
@@ -38,6 +45,46 @@ impl OrganizationRepository for InMemoryOrganizationRepository {
     }
 
     async fn update(&self, id: Uuid, name: Option<String>) -> AppResult<Option<Organization>> {
+        let mut guard = self.store.write().await;
+        if let Some(existing) = guard.get_mut(&id) {
+            if let Some(name) = name {
+                existing.name = name;
+            }
+            return Ok(Some(existing.clone()));
+        }
+
+        Ok(None)
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[async_trait]
+impl BankRepository for InMemoryBankRepository {
+    async fn insert(&self, id: Uuid, name: String, organization_id: Uuid) -> AppResult<Bank> {
+        let bank = Bank::new(id, name, organization_id);
+        self.store.write().await.insert(bank.id, bank.clone());
+        Ok(bank)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<Bank>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_organization(&self, organization_id: Uuid) -> AppResult<Vec<Bank>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|bank| bank.organization_id == organization_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn update(&self, id: Uuid, name: Option<String>) -> AppResult<Option<Bank>> {
         let mut guard = self.store.write().await;
         if let Some(existing) = guard.get_mut(&id) {
             if let Some(name) = name {

@@ -6,6 +6,7 @@ use tokio::net::TcpListener;
 
 use crate::{
     infrastructure::{
+        bank_repository::SurrealAnyBankRepository,
         division_repository::SurrealAnyDivisionRepository,
         job_repository::SurrealAnyJobRepository,
         organization_repository::SurrealAnyOrganizationRepository,
@@ -14,6 +15,7 @@ use crate::{
     },
     routes,
     services::{
+        bank::BankService,
         division::DivisionService,
         job::JobService,
         organization::{self, OrganizationService},
@@ -40,6 +42,7 @@ pub struct AppState {
     payroll_service: Arc<PayrollService>,
     division_service: Arc<DivisionService>,
     job_service: Arc<JobService>,
+    bank_service: Arc<BankService>,
 }
 
 impl AppState {
@@ -48,12 +51,14 @@ impl AppState {
         payroll_service: Arc<PayrollService>,
         division_service: Arc<DivisionService>,
         job_service: Arc<JobService>,
+        bank_service: Arc<BankService>,
     ) -> Self {
         Self {
             organization_service,
             payroll_service,
             division_service,
             job_service,
+            bank_service,
         }
     }
 
@@ -71,6 +76,10 @@ impl AppState {
 
     pub fn job_service(&self) -> Arc<JobService> {
         Arc::clone(&self.job_service)
+    }
+
+    pub fn bank_service(&self) -> Arc<BankService> {
+        Arc::clone(&self.bank_service)
     }
 
     pub async fn initialize() -> Result<Self, ServerSetupError> {
@@ -96,10 +105,17 @@ impl AppState {
         ));
 
         let job_repository: Arc<dyn crate::services::job::JobRepository> =
-            Arc::new(SurrealAnyJobRepository::new(client));
+            Arc::new(SurrealAnyJobRepository::new(client.clone()));
         let job_service = Arc::new(JobService::new(
             job_repository,
             Arc::clone(&payroll_service),
+        ));
+
+        let bank_repository: Arc<dyn crate::services::bank::BankRepository> =
+            Arc::new(SurrealAnyBankRepository::new(client));
+        let bank_service = Arc::new(BankService::new(
+            bank_repository,
+            Arc::clone(&organization_service),
         ));
 
         Ok(Self::new(
@@ -107,6 +123,7 @@ impl AppState {
             payroll_service,
             division_service,
             job_service,
+            bank_service,
         ))
     }
 }
