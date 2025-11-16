@@ -5,10 +5,10 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use nomina::{
-    domain::{division::Division, organization::Organization, payroll::Payroll},
+    domain::{division::Division, job::Job, organization::Organization, payroll::Payroll},
     error::AppResult,
     services::{
-        division::DivisionRepository, organization::OrganizationRepository,
+        division::DivisionRepository, job::JobRepository, organization::OrganizationRepository,
         payroll::PayrollRepository,
     },
 };
@@ -183,6 +183,65 @@ impl DivisionRepository for InMemoryDivisionRepository {
                 existing.parent_division_id = parent;
             }
 
+            return Ok(Some(existing.clone()));
+        }
+
+        Ok(None)
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[derive(Default)]
+pub struct InMemoryJobRepository {
+    store: RwLock<HashMap<Uuid, Job>>,
+}
+
+#[async_trait]
+impl JobRepository for InMemoryJobRepository {
+    async fn insert(
+        &self,
+        id: Uuid,
+        job_title: String,
+        salary: f64,
+        payroll_id: Uuid,
+    ) -> AppResult<Job> {
+        let job = Job::new(id, job_title, salary, payroll_id);
+        self.store.write().await.insert(job.id, job.clone());
+        Ok(job)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<Job>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<Job>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|job| job.payroll_id == payroll_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn update(
+        &self,
+        id: Uuid,
+        job_title: Option<String>,
+        salary: Option<f64>,
+    ) -> AppResult<Option<Job>> {
+        let mut guard = self.store.write().await;
+        if let Some(existing) = guard.get_mut(&id) {
+            if let Some(job_title) = job_title {
+                existing.job_title = job_title;
+            }
+            if let Some(salary) = salary {
+                existing.salary = salary;
+            }
             return Ok(Some(existing.clone()));
         }
 

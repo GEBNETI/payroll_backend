@@ -7,6 +7,7 @@ use nomina::{
     server::AppState,
     services::{
         division::{DivisionRepository, DivisionService},
+        job::{JobRepository, JobService},
         organization::{OrganizationRepository, OrganizationService},
         payroll::{PayrollRepository, PayrollService},
     },
@@ -15,7 +16,8 @@ use nomina::{
 mod in_memory_repository;
 
 pub use in_memory_repository::{
-    InMemoryDivisionRepository, InMemoryOrganizationRepository, InMemoryPayrollRepository,
+    InMemoryDivisionRepository, InMemoryJobRepository, InMemoryOrganizationRepository,
+    InMemoryPayrollRepository,
 };
 
 pub fn test_router() -> Router {
@@ -37,7 +39,18 @@ pub fn test_router() -> Router {
         Arc::clone(&payroll_service),
     ));
 
-    let state = AppState::new(organization_service, payroll_service, division_service);
+    let job_repository: Arc<dyn JobRepository> = Arc::new(InMemoryJobRepository::default());
+    let job_service = Arc::new(JobService::new(
+        job_repository,
+        Arc::clone(&payroll_service),
+    ));
+
+    let state = AppState::new(
+        organization_service,
+        payroll_service,
+        division_service,
+        job_service,
+    );
 
     routes::app_router(state)
 }

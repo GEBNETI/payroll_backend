@@ -65,13 +65,13 @@ impl IntoResponse for AppError {
             AppError::Validation { message } => (StatusCode::UNPROCESSABLE_ENTITY, message.clone()),
             AppError::NotFound { message } => (StatusCode::NOT_FOUND, message.clone()),
             AppError::Conflict { message } => (StatusCode::CONFLICT, message.clone()),
-            AppError::Database { .. } => (
+            AppError::Database { message } => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "database error".to_string(),
+                format!("database error: {message}"),
             ),
-            AppError::Internal { .. } => (
+            AppError::Internal { message } => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "internal server error".to_string(),
+                format!("internal server error: {message}"),
             ),
         };
 
