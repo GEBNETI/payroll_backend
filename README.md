@@ -8,6 +8,7 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 - CRUD over organizations.
 - Payroll management tied to organizations.
 - Division management tied to payrolls with optional parent–child relationships.
+- Job management tied to payrolls with salary tracking.
 - SurrealDB repository implementations plus in-memory doubles for integration tests.
 
 ## HTTP Endpoints
@@ -25,6 +26,11 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id` | Fetch payroll |
 | PUT    | `/organizations/:organization_id/payrolls/:payroll_id` | Update payroll fields |
 | DELETE | `/organizations/:organization_id/payrolls/:payroll_id` | Delete payroll |
+| POST   | `/organizations/:organization_id/payrolls/:payroll_id/jobs` | Create job |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/jobs` | List jobs for a payroll |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/jobs/:job_id` | Fetch job |
+| PUT    | `/organizations/:organization_id/payrolls/:payroll_id/jobs/:job_id` | Update job title or salary |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id/jobs/:job_id` | Delete job |
 | POST   | `/organizations/:organization_id/payrolls/:payroll_id/divisions` | Create division (optional `parent_division_id`) |
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions` | List divisions for a payroll |
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id` | Fetch division |

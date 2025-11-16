@@ -6,7 +6,7 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 ## Application Architecture
 - `src/main.rs` bootstraps configuration, networking, and delegates to `server::run`.
 - `src/lib.rs` exposes high-level modules: `server`, `routes`, `handlers`, `domain`, `services`, `infrastructure`, `middleware`, `extractors`, and `error`.
-- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` currently wires the Organization, Payroll, and Division services so handlers can enforce cross-entity invariants.
+- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` currently wires the Organization, Payroll, Division, and Job services so handlers can enforce cross-entity invariants.
 - `src/routes/` defines small, composable routers per feature (e.g., `routes::health`) that only wire HTTP paths.
 - `src/handlers/` contains request/response logic (`handlers::health::check`) and converts domain data into transport-friendly payloads.
 - `src/domain/` hosts pure business types and helpers (`domain::health::HealthSnapshot`) with no Axum dependencies.
@@ -15,8 +15,9 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 ### REST resources (current)
 - `/health` — basic service metadata probe.
 - `/organizations` — CRUD for organizations.
-- `/payrolls` — CRUD for payrolls (must reference an organization).
-- `/divisions` — CRUD for divisions (must reference a payroll; optional `parent_division_id` enforces same-payroll adjacency).
+- `/organizations/{organization_id}/payrolls` — CRUD for payrolls inside an organization.
+- `/organizations/{organization_id}/payrolls/{payroll_id}/divisions` — CRUD for divisions within a payroll; optional `parent_division_id` enforces same-payroll adjacency.
+- `/organizations/{organization_id}/payrolls/{payroll_id}/jobs` — CRUD for jobs inside a payroll (`job_title` and `salary` fields are mandatory).
 
 ## Build, Test, and Development Commands
 - `cargo check` — fast validation of the codebase before committing.
