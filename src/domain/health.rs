@@ -2,13 +2,13 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct HealthSnapshot {
+pub struct Health {
     pub application: &'static str,
     pub authors: &'static str,
     pub version: &'static str,
 }
 
-impl HealthSnapshot {
+impl Health {
     pub fn current() -> Self {
         Self {
             application: env!("CARGO_PKG_NAME"),

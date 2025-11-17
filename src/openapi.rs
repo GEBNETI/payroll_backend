@@ -33,7 +33,7 @@ use utoipa::OpenApi;
     ),
     components(
         schemas(
-            crate::domain::health::HealthSnapshot,
+            crate::domain::health::Health,
             crate::domain::organization::Organization,
             crate::domain::payroll::Payroll,
             crate::domain::job::Job,

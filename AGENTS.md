@@ -9,7 +9,7 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 - `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` currently wires the Organization, Payroll, Division, and Job services so handlers can enforce cross-entity invariants.
 - `src/routes/` defines small, composable routers per feature (e.g., `routes::health`) that only wire HTTP paths.
 - `src/handlers/` contains request/response logic (`handlers::health::check`) and converts domain data into transport-friendly payloads.
-- `src/domain/` hosts pure business types and helpers (`domain::health::HealthSnapshot`) with no Axum dependencies.
+- `src/domain/` hosts pure business types and helpers (`domain::health::Health`) with no Axum dependencies.
 - `src/services/`, `src/infrastructure/`, `src/middleware/`, `src/extractors/`, and `src/error.rs` are reserved for orchestration, adapters, tower layers, custom extractors, and shared error mappers respectively as features grow.
 
 ### REST resources (current)
