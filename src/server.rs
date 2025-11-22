@@ -8,6 +8,7 @@ use crate::{
     infrastructure::{
         bank_repository::SurrealAnyBankRepository,
         division_repository::SurrealAnyDivisionRepository,
+        employee_repository::SurrealAnyEmployeeRepository,
         job_repository::SurrealAnyJobRepository,
         organization_repository::SurrealAnyOrganizationRepository,
         payroll_repository::SurrealAnyPayrollRepository,
@@ -17,6 +18,7 @@ use crate::{
     services::{
         bank::BankService,
         division::DivisionService,
+        employee::EmployeeService,
         job::JobService,
         organization::{self, OrganizationService},
         payroll::PayrollService,
@@ -43,6 +45,7 @@ pub struct AppState {
     division_service: Arc<DivisionService>,
     job_service: Arc<JobService>,
     bank_service: Arc<BankService>,
+    employee_service: Arc<EmployeeService>,
 }
 
 impl AppState {
@@ -52,6 +55,7 @@ impl AppState {
         division_service: Arc<DivisionService>,
         job_service: Arc<JobService>,
         bank_service: Arc<BankService>,
+        employee_service: Arc<EmployeeService>,
     ) -> Self {
         Self {
             organization_service,
@@ -59,6 +63,7 @@ impl AppState {
             division_service,
             job_service,
             bank_service,
+            employee_service,
         }
     }
 
@@ -80,6 +85,10 @@ impl AppState {
 
     pub fn bank_service(&self) -> Arc<BankService> {
         Arc::clone(&self.bank_service)
+    }
+
+    pub fn employee_service(&self) -> Arc<EmployeeService> {
+        Arc::clone(&self.employee_service)
     }
 
     pub async fn initialize() -> Result<Self, ServerSetupError> {
@@ -112,10 +121,20 @@ impl AppState {
         ));
 
         let bank_repository: Arc<dyn crate::services::bank::BankRepository> =
-            Arc::new(SurrealAnyBankRepository::new(client));
+            Arc::new(SurrealAnyBankRepository::new(client.clone()));
         let bank_service = Arc::new(BankService::new(
             bank_repository,
             Arc::clone(&organization_service),
+        ));
+
+        let employee_repository: Arc<dyn crate::services::employee::EmployeeRepository> =
+            Arc::new(SurrealAnyEmployeeRepository::new(client));
+        let employee_service = Arc::new(EmployeeService::new(
+            employee_repository,
+            Arc::clone(&division_service),
+            Arc::clone(&payroll_service),
+            Arc::clone(&job_service),
+            Arc::clone(&bank_service),
         ));
 
         Ok(Self::new(
@@ -124,6 +143,7 @@ impl AppState {
             division_service,
             job_service,
             bank_service,
+            employee_service,
         ))
     }
 }

@@ -35,6 +35,8 @@ async fn openapi_document_is_available() {
         "/organizations/{organization_id}/payrolls/{payroll_id}",
         "/organizations/{organization_id}/payrolls/{payroll_id}/divisions",
         "/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}",
+        "/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees",
+        "/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees/{employee_id}",
     ] {
         assert!(
             body["paths"].get(path).is_some(),

@@ -6,12 +6,17 @@ use uuid::Uuid;
 
 use nomina::{
     domain::{
-        bank::Bank, division::Division, job::Job, organization::Organization, payroll::Payroll,
+        bank::Bank, division::Division, employee::Employee, job::Job, organization::Organization,
+        payroll::Payroll,
     },
     error::AppResult,
     services::{
-        bank::BankRepository, division::DivisionRepository, job::JobRepository,
-        organization::OrganizationRepository, payroll::PayrollRepository,
+        bank::BankRepository,
+        division::DivisionRepository,
+        employee::{EmployeeRepository, UpdateEmployeeParams},
+        job::JobRepository,
+        organization::OrganizationRepository,
+        payroll::PayrollRepository,
     },
 };
 
@@ -289,6 +294,151 @@ impl JobRepository for InMemoryJobRepository {
             if let Some(salary) = salary {
                 existing.salary = salary;
             }
+            return Ok(Some(existing.clone()));
+        }
+
+        Ok(None)
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[derive(Default)]
+pub struct InMemoryEmployeeRepository {
+    store: RwLock<HashMap<Uuid, Employee>>,
+}
+
+#[async_trait]
+impl EmployeeRepository for InMemoryEmployeeRepository {
+    async fn insert(
+        &self,
+        id: Uuid,
+        id_number: String,
+        last_name: String,
+        first_name: String,
+        address: String,
+        phone: String,
+        place_of_birth: String,
+        date_of_birth: chrono::NaiveDate,
+        nationality: String,
+        marital_status: String,
+        gender: String,
+        hire_date: chrono::NaiveDate,
+        leaving_date: Option<chrono::NaiveDate>,
+        clasification: String,
+        job_id: Uuid,
+        bank_id: Uuid,
+        bank_account: String,
+        status: String,
+        hours: i32,
+        division_id: Uuid,
+        payroll_id: Uuid,
+    ) -> AppResult<Employee> {
+        let employee = Employee::new(
+            id,
+            id_number,
+            last_name,
+            first_name,
+            address,
+            phone,
+            place_of_birth,
+            date_of_birth,
+            nationality,
+            marital_status,
+            gender,
+            hire_date,
+            leaving_date,
+            clasification,
+            job_id,
+            bank_id,
+            bank_account,
+            status,
+            hours,
+            division_id,
+            payroll_id,
+        );
+        self.store
+            .write()
+            .await
+            .insert(employee.id, employee.clone());
+        Ok(employee)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<Employee>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_division(&self, division_id: Uuid) -> AppResult<Vec<Employee>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|employee| employee.division_id == division_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn update(&self, id: Uuid, updates: UpdateEmployeeParams) -> AppResult<Option<Employee>> {
+        let mut guard = self.store.write().await;
+        if let Some(existing) = guard.get_mut(&id) {
+            if let Some(id_number) = updates.id_number {
+                existing.id_number = id_number;
+            }
+            if let Some(last_name) = updates.last_name {
+                existing.last_name = last_name;
+            }
+            if let Some(first_name) = updates.first_name {
+                existing.first_name = first_name;
+            }
+            if let Some(address) = updates.address {
+                existing.address = address;
+            }
+            if let Some(phone) = updates.phone {
+                existing.phone = phone;
+            }
+            if let Some(place_of_birth) = updates.place_of_birth {
+                existing.place_of_birth = place_of_birth;
+            }
+            if let Some(date_of_birth) = updates.date_of_birth {
+                existing.date_of_birth = date_of_birth;
+            }
+            if let Some(nationality) = updates.nationality {
+                existing.nationality = nationality;
+            }
+            if let Some(marital_status) = updates.marital_status {
+                existing.marital_status = marital_status;
+            }
+            if let Some(gender) = updates.gender {
+                existing.gender = gender;
+            }
+            if let Some(hire_date) = updates.hire_date {
+                existing.hire_date = hire_date;
+            }
+            if let Some(leaving_date) = updates.leaving_date {
+                existing.leaving_date = leaving_date;
+            }
+            if let Some(clasification) = updates.clasification {
+                existing.clasification = clasification;
+            }
+            if let Some(job_id) = updates.job_id {
+                existing.job_id = job_id;
+            }
+            if let Some(bank_id) = updates.bank_id {
+                existing.bank_id = bank_id;
+            }
+            if let Some(bank_account) = updates.bank_account {
+                existing.bank_account = bank_account;
+            }
+            if let Some(status) = updates.status {
+                existing.status = status;
+            }
+            if let Some(hours) = updates.hours {
+                existing.hours = hours;
+            }
+
             return Ok(Some(existing.clone()));
         }
 

@@ -30,6 +30,11 @@ use utoipa::OpenApi;
         crate::handlers::bank::get,
         crate::handlers::bank::update,
         crate::handlers::bank::delete,
+        crate::handlers::employee::create,
+        crate::handlers::employee::list,
+        crate::handlers::employee::get,
+        crate::handlers::employee::update,
+        crate::handlers::employee::delete,
     ),
     components(
         schemas(
@@ -39,6 +44,7 @@ use utoipa::OpenApi;
             crate::domain::job::Job,
             crate::domain::division::Division,
             crate::domain::bank::Bank,
+            crate::domain::employee::Employee,
             crate::handlers::organization::CreateOrganizationRequest,
             crate::handlers::organization::UpdateOrganizationRequest,
             crate::handlers::organization::OrganizationResponse,
@@ -54,6 +60,9 @@ use utoipa::OpenApi;
             crate::handlers::bank::CreateBankRequest,
             crate::handlers::bank::UpdateBankRequest,
             crate::handlers::bank::BankResponse,
+            crate::handlers::employee::CreateEmployeeRequest,
+            crate::handlers::employee::UpdateEmployeeRequest,
+            crate::handlers::employee::EmployeeResponse,
         )
     ),
     tags(
@@ -63,6 +72,7 @@ use utoipa::OpenApi;
         (name = "Jobs", description = "Job management"),
         (name = "Divisions", description = "Division management"),
         (name = "Banks", description = "Bank management"),
+        (name = "Employees", description = "Employee management"),
     )
 )]
 pub struct ApiDoc;
