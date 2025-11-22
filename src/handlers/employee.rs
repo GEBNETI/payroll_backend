@@ -31,7 +31,7 @@ pub struct CreateEmployeeRequest {
     #[schema(value_type = String, format = Date)]
     pub hire_date: NaiveDate,
     #[schema(value_type = Option<String>, format = Date)]
-    pub leaving_date: Option<NaiveDate>,
+    pub termination_date: Option<NaiveDate>,
     pub clasification: String,
     pub job_id: Uuid,
     pub bank_id: Uuid,
@@ -57,7 +57,7 @@ pub struct UpdateEmployeeRequest {
     pub hire_date: Option<NaiveDate>,
     #[serde(default, deserialize_with = "deserialize_option_option")]
     #[schema(value_type = Option<String>, format = Date)]
-    pub leaving_date: Option<Option<NaiveDate>>,
+    pub termination_date: Option<Option<NaiveDate>>,
     pub clasification: Option<String>,
     pub job_id: Option<Uuid>,
     pub bank_id: Option<Uuid>,
@@ -83,7 +83,7 @@ pub struct EmployeeResponse {
     #[schema(value_type = String, format = Date)]
     pub hire_date: NaiveDate,
     #[schema(value_type = Option<String>, format = Date)]
-    pub leaving_date: Option<NaiveDate>,
+    pub termination_date: Option<NaiveDate>,
     pub clasification: String,
     pub job_id: Uuid,
     pub bank_id: Uuid,
@@ -126,7 +126,7 @@ impl From<Employee> for EmployeeResponse {
             marital_status: value.marital_status,
             gender: value.gender,
             hire_date: value.hire_date,
-            leaving_date: value.leaving_date,
+            termination_date: value.termination_date,
             clasification: value.clasification,
             job_id: value.job_id,
             bank_id: value.bank_id,
@@ -153,7 +153,7 @@ impl CreateEmployeeRequest {
             marital_status: self.marital_status,
             gender: self.gender,
             hire_date: self.hire_date,
-            leaving_date: self.leaving_date,
+            termination_date: self.termination_date,
             clasification: self.clasification,
             job_id: self.job_id,
             bank_id: self.bank_id,
@@ -178,7 +178,7 @@ impl UpdateEmployeeRequest {
             marital_status: self.marital_status,
             gender: self.gender,
             hire_date: self.hire_date,
-            leaving_date: self.leaving_date,
+            termination_date: self.termination_date,
             clasification: self.clasification,
             job_id: self.job_id,
             bank_id: self.bank_id,

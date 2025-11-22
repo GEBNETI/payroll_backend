@@ -20,7 +20,7 @@ pub struct Employee {
     #[schema(value_type = String, format = Date)]
     pub hire_date: NaiveDate,
     #[schema(value_type = Option<String>, format = Date)]
-    pub leaving_date: Option<NaiveDate>,
+    pub termination_date: Option<NaiveDate>,
     pub clasification: String,
     pub job_id: Uuid,
     pub bank_id: Uuid,
@@ -47,7 +47,7 @@ impl Employee {
         marital_status: impl Into<String>,
         gender: impl Into<String>,
         hire_date: NaiveDate,
-        leaving_date: Option<NaiveDate>,
+        termination_date: Option<NaiveDate>,
         clasification: impl Into<String>,
         job_id: Uuid,
         bank_id: Uuid,
@@ -70,7 +70,7 @@ impl Employee {
             marital_status: marital_status.into(),
             gender: gender.into(),
             hire_date,
-            leaving_date,
+            termination_date,
             clasification: clasification.into(),
             job_id,
             bank_id,

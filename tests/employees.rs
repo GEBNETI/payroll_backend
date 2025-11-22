@@ -183,7 +183,7 @@ async fn can_create_and_list_employees() {
     assert_eq!(created["division_id"], division_id.to_string());
     assert_eq!(created["job_id"], job_id.to_string());
     assert_eq!(created["bank_id"], bank_id.to_string());
-    assert!(created["leaving_date"].is_null());
+    assert!(created["termination_date"].is_null());
 
     let response = app
         .clone()
@@ -267,7 +267,7 @@ async fn rejects_invalid_references_and_dates() {
                     "marital_status": "Single",
                     "gender": "M",
                     "hire_date": "2022-01-02",
-                    "leaving_date": "2022-01-01",
+                    "termination_date": "2022-01-01",
                     "clasification": "Full-time",
                     "job_id": job_in_payroll,
                     "bank_id": bank_valid,
@@ -336,7 +336,7 @@ async fn can_update_and_delete_employee() {
                 .body(Body::from(json!({
                     "hours": 30,
                     "status": "On Leave",
-                    "leaving_date": null
+                    "termination_date": null
                 }).to_string()))
                 .expect("request"),
         )
@@ -347,7 +347,7 @@ async fn can_update_and_delete_employee() {
     let updated = read_json(response.into_body().collect().await.unwrap().to_bytes());
     assert_eq!(updated["hours"], 30);
     assert_eq!(updated["status"], "On Leave");
-    assert!(updated["leaving_date"].is_null());
+    assert!(updated["termination_date"].is_null());
 
     let response = app
         .clone()

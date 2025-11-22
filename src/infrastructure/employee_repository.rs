@@ -53,7 +53,7 @@ where
         marital_status: String,
         gender: String,
         hire_date: NaiveDate,
-        leaving_date: Option<NaiveDate>,
+        termination_date: Option<NaiveDate>,
         clasification: String,
         job_id: Uuid,
         bank_id: Uuid,
@@ -78,7 +78,7 @@ where
                 "marital_status": marital_status,
                 "gender": gender,
                 "hire_date": hire_date.to_string(),
-                "leaving_date": leaving_date.map(|date| date.to_string()),
+                "termination_date": termination_date.map(|date| date.to_string()),
                 "clasification": clasification,
                 "job_id": job_id,
                 "bank_id": bank_id,
@@ -144,7 +144,7 @@ struct EmployeeRecord {
     marital_status: String,
     gender: String,
     hire_date: String,
-    leaving_date: Option<String>,
+    termination_date: Option<String>,
     clasification: String,
     job_id: String,
     bank_id: String,
@@ -177,8 +177,8 @@ fn record_to_domain(record: EmployeeRecord) -> AppResult<Employee> {
         .map_err(|_| AppError::internal("stored bank id is not a UUID"))?;
     let date_of_birth = parse_date(&record.date_of_birth, "date of birth")?;
     let hire_date = parse_date(&record.hire_date, "hire date")?;
-    let leaving_date = match record.leaving_date {
-        Some(value) => Some(parse_date(&value, "leaving date")?),
+    let termination_date = match record.termination_date {
+        Some(value) => Some(parse_date(&value, "termination date")?),
         None => None,
     };
 
@@ -195,7 +195,7 @@ fn record_to_domain(record: EmployeeRecord) -> AppResult<Employee> {
         record.marital_status,
         record.gender,
         hire_date,
-        leaving_date,
+        termination_date,
         record.clasification,
         job_id,
         bank_id,
@@ -271,16 +271,16 @@ fn build_update_payload(updates: UpdateEmployeeParams) -> AppResult<JsonValue> {
         );
     }
 
-    if let Some(leaving_date) = updates.leaving_date {
-        match leaving_date {
+    if let Some(termination_date) = updates.termination_date {
+        match termination_date {
             Some(value) => {
                 object.insert(
-                    "leaving_date".to_string(),
+                    "termination_date".to_string(),
                     JsonValue::String(value.to_string()),
                 );
             }
             None => {
-                object.insert("leaving_date".to_string(), JsonValue::Null);
+                object.insert("termination_date".to_string(), JsonValue::Null);
             }
         }
     }

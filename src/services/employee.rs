@@ -25,7 +25,7 @@ pub struct CreateEmployeeParams {
     pub marital_status: String,
     pub gender: String,
     pub hire_date: NaiveDate,
-    pub leaving_date: Option<NaiveDate>,
+    pub termination_date: Option<NaiveDate>,
     pub clasification: String,
     pub job_id: Uuid,
     pub bank_id: Uuid,
@@ -47,7 +47,7 @@ pub struct UpdateEmployeeParams {
     pub marital_status: Option<String>,
     pub gender: Option<String>,
     pub hire_date: Option<NaiveDate>,
-    pub leaving_date: Option<Option<NaiveDate>>,
+    pub termination_date: Option<Option<NaiveDate>>,
     pub clasification: Option<String>,
     pub job_id: Option<Uuid>,
     pub bank_id: Option<Uuid>,
@@ -73,7 +73,7 @@ pub trait EmployeeRepository: Send + Sync {
         marital_status: String,
         gender: String,
         hire_date: NaiveDate,
-        leaving_date: Option<NaiveDate>,
+        termination_date: Option<NaiveDate>,
         clasification: String,
         job_id: Uuid,
         bank_id: Uuid,
@@ -155,7 +155,7 @@ impl EmployeeService {
         let status = Self::normalize_field(&params.status, "status")?;
         let hours = Self::validate_hours(params.hours)?;
         let hire_date = params.hire_date;
-        let leaving_date = Self::validate_leaving_date(hire_date, params.leaving_date)?;
+        let termination_date = Self::validate_termination_date(hire_date, params.termination_date)?;
 
         let id = Uuid::new_v4();
         self.repository
@@ -172,7 +172,7 @@ impl EmployeeService {
                 marital_status,
                 gender,
                 hire_date,
-                leaving_date,
+                termination_date,
                 clasification,
                 params.job_id,
                 params.bank_id,
@@ -236,7 +236,7 @@ impl EmployeeService {
             && params.marital_status.is_none()
             && params.gender.is_none()
             && params.hire_date.is_none()
-            && params.leaving_date.is_none()
+            && params.termination_date.is_none()
             && params.clasification.is_none()
             && params.job_id.is_none()
             && params.bank_id.is_none()
@@ -265,8 +265,8 @@ impl EmployeeService {
         }
 
         let hire_date = params.hire_date.unwrap_or(employee.hire_date);
-        let leaving_date = match params.leaving_date {
-            Some(value) => Some(Self::validate_leaving_date(hire_date, value)?),
+        let termination_date = match params.termination_date {
+            Some(value) => Some(Self::validate_termination_date(hire_date, value)?),
             None => None,
         };
 
@@ -318,7 +318,7 @@ impl EmployeeService {
                 .map(|value| Self::normalize_field(value, "gender"))
                 .transpose()?,
             hire_date: params.hire_date,
-            leaving_date,
+            termination_date,
             clasification: params
                 .clasification
                 .as_deref()
@@ -425,14 +425,14 @@ impl EmployeeService {
         Ok(value)
     }
 
-    fn validate_leaving_date(
+    fn validate_termination_date(
         hire_date: NaiveDate,
-        leaving_date: Option<NaiveDate>,
+        termination_date: Option<NaiveDate>,
     ) -> AppResult<Option<NaiveDate>> {
-        if let Some(date) = leaving_date {
+        if let Some(date) = termination_date {
             if date < hire_date {
                 return Err(AppError::validation(
-                    "leaving date cannot be before hire date",
+                    "termination date cannot be before hire date",
                 ));
             }
             Ok(Some(date))
