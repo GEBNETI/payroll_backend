@@ -6,17 +6,27 @@ use uuid::Uuid;
 
 use nomina::{
     domain::{
-        bank::Bank, division::Division, employee::Employee, job::Job, organization::Organization,
+        bank::Bank,
+        division::Division,
+        employee::Employee,
+        employee_payroll_concept::EmployeePayrollConcept,
+        job::Job,
+        organization::Organization,
         payroll::Payroll,
+        payroll_concept::{PayrollConcept, PayrollConceptScope, PayrollConceptType},
+        payroll_concept_definition::PayrollConceptDefinition,
     },
     error::AppResult,
     services::{
         bank::BankRepository,
         division::DivisionRepository,
         employee::{EmployeeRepository, UpdateEmployeeParams},
+        employee_payroll_concept::EmployeePayrollConceptRepository,
         job::JobRepository,
         organization::OrganizationRepository,
         payroll::PayrollRepository,
+        payroll_concept::PayrollConceptRepository,
+        payroll_concept_definition::PayrollConceptDefinitionRepository,
     },
 };
 
@@ -306,8 +316,87 @@ impl JobRepository for InMemoryJobRepository {
 }
 
 #[derive(Default)]
+pub struct InMemoryPayrollConceptRepository {
+    store: RwLock<HashMap<Uuid, PayrollConcept>>,
+}
+
+#[async_trait]
+impl PayrollConceptRepository for InMemoryPayrollConceptRepository {
+    async fn insert(
+        &self,
+        id: Uuid,
+        code: String,
+        name: String,
+        concept_type: PayrollConceptType,
+        scope: PayrollConceptScope,
+        payroll_id: Uuid,
+    ) -> AppResult<PayrollConcept> {
+        let concept = PayrollConcept::new(id, code, name, concept_type, scope, payroll_id);
+        self.store.write().await.insert(concept.id, concept.clone());
+        Ok(concept)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollConcept>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<PayrollConcept>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|concept| concept.payroll_id == payroll_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn update(
+        &self,
+        id: Uuid,
+        code: Option<String>,
+        name: Option<String>,
+        concept_type: Option<PayrollConceptType>,
+        scope: Option<PayrollConceptScope>,
+    ) -> AppResult<Option<PayrollConcept>> {
+        let mut guard = self.store.write().await;
+        if let Some(existing) = guard.get_mut(&id) {
+            if let Some(code) = code {
+                existing.code = code;
+            }
+            if let Some(name) = name {
+                existing.name = name;
+            }
+            if let Some(concept_type) = concept_type {
+                existing.concept_type = concept_type;
+            }
+            if let Some(scope) = scope {
+                existing.scope = scope;
+            }
+            return Ok(Some(existing.clone()));
+        }
+
+        Ok(None)
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[derive(Default)]
 pub struct InMemoryEmployeeRepository {
     store: RwLock<HashMap<Uuid, Employee>>,
+}
+
+#[derive(Default)]
+pub struct InMemoryEmployeePayrollConceptRepository {
+    store: RwLock<HashMap<Uuid, EmployeePayrollConcept>>,
+}
+
+#[derive(Default)]
+pub struct InMemoryPayrollConceptDefinitionRepository {
+    store: RwLock<HashMap<Uuid, PayrollConceptDefinition>>,
 }
 
 #[async_trait]
@@ -439,6 +528,129 @@ impl EmployeeRepository for InMemoryEmployeeRepository {
                 existing.hours = hours;
             }
 
+            return Ok(Some(existing.clone()));
+        }
+
+        Ok(None)
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[async_trait]
+impl EmployeePayrollConceptRepository for InMemoryEmployeePayrollConceptRepository {
+    async fn insert(
+        &self,
+        id: Uuid,
+        employee_id: Uuid,
+        payroll_concept_id: Uuid,
+        amount: f64,
+    ) -> AppResult<EmployeePayrollConcept> {
+        let assignment = EmployeePayrollConcept::new(id, employee_id, payroll_concept_id, amount);
+        self.store
+            .write()
+            .await
+            .insert(assignment.id, assignment.clone());
+        Ok(assignment)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<EmployeePayrollConcept>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_employee(&self, employee_id: Uuid) -> AppResult<Vec<EmployeePayrollConcept>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|assignment| assignment.employee_id == employee_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn fetch_by_employee_and_concept(
+        &self,
+        employee_id: Uuid,
+        payroll_concept_id: Uuid,
+    ) -> AppResult<Option<EmployeePayrollConcept>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .find(|assignment| {
+                assignment.employee_id == employee_id
+                    && assignment.payroll_concept_id == payroll_concept_id
+            })
+            .cloned())
+    }
+
+    async fn update_amount(
+        &self,
+        id: Uuid,
+        amount: f64,
+    ) -> AppResult<Option<EmployeePayrollConcept>> {
+        let mut guard = self.store.write().await;
+        if let Some(existing) = guard.get_mut(&id) {
+            existing.amount = amount;
+            return Ok(Some(existing.clone()));
+        }
+
+        Ok(None)
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[async_trait]
+impl PayrollConceptDefinitionRepository for InMemoryPayrollConceptDefinitionRepository {
+    async fn insert(
+        &self,
+        id: Uuid,
+        payroll_concept_id: Uuid,
+        formula: String,
+        condition: String,
+    ) -> AppResult<PayrollConceptDefinition> {
+        let definition = PayrollConceptDefinition::new(id, payroll_concept_id, formula, condition);
+        self.store
+            .write()
+            .await
+            .insert(definition.id, definition.clone());
+        Ok(definition)
+    }
+
+    async fn fetch_by_concept(
+        &self,
+        payroll_concept_id: Uuid,
+    ) -> AppResult<Option<PayrollConceptDefinition>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .find(|definition| definition.payroll_concept_id == payroll_concept_id)
+            .cloned())
+    }
+
+    async fn update(
+        &self,
+        id: Uuid,
+        formula: Option<String>,
+        condition: Option<String>,
+    ) -> AppResult<Option<PayrollConceptDefinition>> {
+        let mut guard = self.store.write().await;
+        if let Some(existing) = guard.get_mut(&id) {
+            if let Some(formula) = formula {
+                existing.formula = formula;
+            }
+            if let Some(condition) = condition {
+                existing.condition = condition;
+            }
             return Ok(Some(existing.clone()));
         }
 

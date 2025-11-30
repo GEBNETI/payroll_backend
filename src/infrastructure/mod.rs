@@ -1,7 +1,10 @@
 pub mod bank_repository;
 pub mod division_repository;
+pub mod employee_payroll_concept_repository;
 pub mod employee_repository;
 pub mod job_repository;
 pub mod organization_repository;
+pub mod payroll_concept_definition_repository;
+pub mod payroll_concept_repository;
 pub mod payroll_repository;
 pub mod surreal;

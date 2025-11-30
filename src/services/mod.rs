@@ -1,6 +1,9 @@
 pub mod bank;
 pub mod division;
 pub mod employee;
+pub mod employee_payroll_concept;
 pub mod job;
 pub mod organization;
 pub mod payroll;
+pub mod payroll_concept;
+pub mod payroll_concept_definition;
