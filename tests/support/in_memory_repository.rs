@@ -13,7 +13,9 @@ use nomina::{
         job::Job,
         organization::Organization,
         payroll::Payroll,
-        payroll_concept::{PayrollConcept, PayrollConceptScope, PayrollConceptType},
+        payroll_concept::{
+            PayrollConcept, PayrollConceptPeriod, PayrollConceptScope, PayrollConceptType,
+        },
         payroll_concept_definition::PayrollConceptDefinition,
     },
     error::AppResult,
@@ -329,9 +331,20 @@ impl PayrollConceptRepository for InMemoryPayrollConceptRepository {
         name: String,
         concept_type: PayrollConceptType,
         scope: PayrollConceptScope,
+        period: PayrollConceptPeriod,
+        active: bool,
         payroll_id: Uuid,
     ) -> AppResult<PayrollConcept> {
-        let concept = PayrollConcept::new(id, code, name, concept_type, scope, payroll_id);
+        let concept = PayrollConcept::new(
+            id,
+            code,
+            name,
+            concept_type,
+            scope,
+            period,
+            active,
+            payroll_id,
+        );
         self.store.write().await.insert(concept.id, concept.clone());
         Ok(concept)
     }
@@ -358,6 +371,8 @@ impl PayrollConceptRepository for InMemoryPayrollConceptRepository {
         name: Option<String>,
         concept_type: Option<PayrollConceptType>,
         scope: Option<PayrollConceptScope>,
+        period: Option<PayrollConceptPeriod>,
+        active: Option<bool>,
     ) -> AppResult<Option<PayrollConcept>> {
         let mut guard = self.store.write().await;
         if let Some(existing) = guard.get_mut(&id) {
@@ -372,6 +387,12 @@ impl PayrollConceptRepository for InMemoryPayrollConceptRepository {
             }
             if let Some(scope) = scope {
                 existing.scope = scope;
+            }
+            if let Some(period) = period {
+                existing.period = period;
+            }
+            if let Some(active) = active {
+                existing.active = active;
             }
             return Ok(Some(existing.clone()));
         }

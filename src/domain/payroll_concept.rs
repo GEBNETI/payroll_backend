@@ -17,6 +17,20 @@ pub enum PayrollConceptScope {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, ToSchema)]
+pub enum PayrollConceptPeriod {
+    #[serde(rename = "1")]
+    #[schema(rename = "1")]
+    One,
+    #[serde(rename = "2")]
+    #[schema(rename = "2")]
+    Two,
+    #[serde(rename = "both")]
+    Both,
+    #[serde(rename = "special")]
+    Special,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, ToSchema)]
 pub struct PayrollConcept {
     pub id: Uuid,
     pub code: String,
@@ -24,6 +38,8 @@ pub struct PayrollConcept {
     #[serde(rename = "type")]
     pub concept_type: PayrollConceptType,
     pub scope: PayrollConceptScope,
+    pub period: PayrollConceptPeriod,
+    pub active: bool,
     pub payroll_id: Uuid,
 }
 
@@ -34,6 +50,8 @@ impl PayrollConcept {
         name: impl Into<String>,
         concept_type: PayrollConceptType,
         scope: PayrollConceptScope,
+        period: PayrollConceptPeriod,
+        active: bool,
         payroll_id: Uuid,
     ) -> Self {
         Self {
@@ -42,6 +60,8 @@ impl PayrollConcept {
             name: name.into(),
             concept_type,
             scope,
+            period,
+            active,
             payroll_id,
         }
     }

@@ -81,7 +81,9 @@ async fn can_create_and_list_payroll_concepts() {
                         "code": "BASIC",
                         "name": "Base Salary",
                         "type": "earning",
-                        "scope": "global"
+                        "scope": "global",
+                        "period": "1",
+                        "active": true
                     })
                     .to_string(),
                 ))
@@ -94,6 +96,8 @@ async fn can_create_and_list_payroll_concepts() {
     let created = read_json(response.into_body().collect().await.unwrap().to_bytes());
     assert_eq!(created["code"], "BASIC");
     assert_eq!(created["type"], "earning");
+    assert_eq!(created["period"], "1");
+    assert!(created["active"].as_bool().unwrap());
 
     let response = app
         .clone()
@@ -135,7 +139,9 @@ async fn rejects_invalid_payroll_reference_for_concepts() {
                         "code": "INVALID",
                         "name": "Invalid",
                         "type": "deduction",
-                        "scope": "individual"
+                        "scope": "individual",
+                        "period": "2",
+                        "active": true
                     })
                     .to_string(),
                 ))
@@ -167,7 +173,9 @@ async fn can_update_and_delete_payroll_concept() {
                         "code": "BONUS",
                         "name": "Bonus",
                         "type": "earning",
-                        "scope": "individual"
+                        "scope": "individual",
+                        "period": "special",
+                        "active": true
                     })
                     .to_string(),
                 ))
@@ -193,7 +201,9 @@ async fn can_update_and_delete_payroll_concept() {
                         "code": "BONUS",
                         "name": "Performance Bonus",
                         "type": "earning",
-                        "scope": "global"
+                        "scope": "global",
+                        "period": "both",
+                        "active": false
                     })
                     .to_string(),
                 ))
@@ -205,6 +215,8 @@ async fn can_update_and_delete_payroll_concept() {
     assert_eq!(response.status(), StatusCode::OK);
     let updated = read_json(response.into_body().collect().await.unwrap().to_bytes());
     assert_eq!(updated["name"], "Performance Bonus");
+    assert_eq!(updated["period"], "both");
+    assert!(!updated["active"].as_bool().unwrap());
     assert_eq!(updated["scope"], "global");
 
     let response = app

@@ -212,7 +212,9 @@ async fn create_payroll_concept(
                         "code": format!("CODE-{scope}"),
                         "name": format!("{scope} Concept"),
                         "type": "earning",
-                        "scope": scope
+                        "scope": scope,
+                        "period": "both",
+                        "active": true
                     })
                     .to_string(),
                 ))

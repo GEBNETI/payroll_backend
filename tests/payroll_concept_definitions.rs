@@ -77,7 +77,9 @@ async fn create_concept(
                         "code": format!("DEF-{scope}"),
                         "name": format!("{scope} Concept"),
                         "type": "earning",
-                        "scope": scope
+                        "scope": scope,
+                        "period": "both",
+                        "active": true
                     })
                     .to_string(),
                 ))

@@ -8,7 +8,9 @@ use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use crate::{
-    domain::payroll_concept::{PayrollConcept, PayrollConceptScope, PayrollConceptType},
+    domain::payroll_concept::{
+        PayrollConcept, PayrollConceptPeriod, PayrollConceptScope, PayrollConceptType,
+    },
     error::{AppError, AppResult},
     server::AppState,
     services::payroll_concept::{CreatePayrollConceptParams, UpdatePayrollConceptParams},
@@ -21,6 +23,8 @@ pub struct CreatePayrollConceptRequest {
     #[serde(rename = "type")]
     pub concept_type: PayrollConceptType,
     pub scope: PayrollConceptScope,
+    pub period: PayrollConceptPeriod,
+    pub active: bool,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -30,6 +34,8 @@ pub struct UpdatePayrollConceptRequest {
     #[serde(rename = "type")]
     pub concept_type: Option<PayrollConceptType>,
     pub scope: Option<PayrollConceptScope>,
+    pub period: Option<PayrollConceptPeriod>,
+    pub active: Option<bool>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -40,6 +46,8 @@ pub struct PayrollConceptResponse {
     #[serde(rename = "type")]
     pub concept_type: PayrollConceptType,
     pub scope: PayrollConceptScope,
+    pub period: PayrollConceptPeriod,
+    pub active: bool,
     pub payroll_id: Uuid,
 }
 
@@ -66,6 +74,8 @@ impl From<PayrollConcept> for PayrollConceptResponse {
             name: value.name,
             concept_type: value.concept_type,
             scope: value.scope,
+            period: value.period,
+            active: value.active,
             payroll_id: value.payroll_id,
         }
     }
@@ -78,6 +88,8 @@ impl CreatePayrollConceptRequest {
             name: self.name,
             concept_type: self.concept_type,
             scope: self.scope,
+            period: self.period,
+            active: self.active,
         }
     }
 }
@@ -89,6 +101,8 @@ impl UpdatePayrollConceptRequest {
             name: self.name,
             concept_type: self.concept_type,
             scope: self.scope,
+            period: self.period,
+            active: self.active,
         }
     }
 }

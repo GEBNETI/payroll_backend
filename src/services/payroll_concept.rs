@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::{
-    domain::payroll_concept::{PayrollConcept, PayrollConceptScope, PayrollConceptType},
+    domain::payroll_concept::{
+        PayrollConcept, PayrollConceptPeriod, PayrollConceptScope, PayrollConceptType,
+    },
     error::{AppError, AppResult},
     services::payroll::PayrollService,
 };
@@ -15,6 +17,8 @@ pub struct CreatePayrollConceptParams {
     pub name: String,
     pub concept_type: PayrollConceptType,
     pub scope: PayrollConceptScope,
+    pub period: PayrollConceptPeriod,
+    pub active: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -23,6 +27,8 @@ pub struct UpdatePayrollConceptParams {
     pub name: Option<String>,
     pub concept_type: Option<PayrollConceptType>,
     pub scope: Option<PayrollConceptScope>,
+    pub period: Option<PayrollConceptPeriod>,
+    pub active: Option<bool>,
 }
 
 #[async_trait]
@@ -34,6 +40,8 @@ pub trait PayrollConceptRepository: Send + Sync {
         name: String,
         concept_type: PayrollConceptType,
         scope: PayrollConceptScope,
+        period: PayrollConceptPeriod,
+        active: bool,
         payroll_id: Uuid,
     ) -> AppResult<PayrollConcept>;
 
@@ -48,6 +56,8 @@ pub trait PayrollConceptRepository: Send + Sync {
         name: Option<String>,
         concept_type: Option<PayrollConceptType>,
         scope: Option<PayrollConceptScope>,
+        period: Option<PayrollConceptPeriod>,
+        active: Option<bool>,
     ) -> AppResult<Option<PayrollConcept>>;
 
     async fn delete(&self, id: Uuid) -> AppResult<bool>;
@@ -90,6 +100,8 @@ impl PayrollConceptService {
                 name,
                 params.concept_type,
                 params.scope,
+                params.period,
+                params.active,
                 payroll_id,
             )
             .await
@@ -132,6 +144,8 @@ impl PayrollConceptService {
             && params.name.is_none()
             && params.concept_type.is_none()
             && params.scope.is_none()
+            && params.period.is_none()
+            && params.active.is_none()
         {
             return Err(AppError::validation("no fields supplied for update"));
         }
@@ -156,7 +170,15 @@ impl PayrollConceptService {
             .transpose()?;
 
         self.repository
-            .update(concept_id, code, name, params.concept_type, params.scope)
+            .update(
+                concept_id,
+                code,
+                name,
+                params.concept_type,
+                params.scope,
+                params.period,
+                params.active,
+            )
             .await
     }
 

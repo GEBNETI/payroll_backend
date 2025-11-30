@@ -8,7 +8,9 @@ use surrealdb::{
 use uuid::Uuid;
 
 use crate::{
-    domain::payroll_concept::{PayrollConcept, PayrollConceptScope, PayrollConceptType},
+    domain::payroll_concept::{
+        PayrollConcept, PayrollConceptPeriod, PayrollConceptScope, PayrollConceptType,
+    },
     error::{AppError, AppResult},
     services::payroll_concept::PayrollConceptRepository,
 };
@@ -44,6 +46,8 @@ where
         name: String,
         concept_type: PayrollConceptType,
         scope: PayrollConceptScope,
+        period: PayrollConceptPeriod,
+        active: bool,
         payroll_id: Uuid,
     ) -> AppResult<PayrollConcept> {
         let record: Option<PayrollConceptRecord> = self
@@ -54,6 +58,8 @@ where
                 "name": name,
                 "type": concept_type,
                 "scope": scope,
+                "period": period,
+                "active": active,
                 "payroll_id": payroll_id,
             }))
             .await?;
@@ -89,8 +95,10 @@ where
         name: Option<String>,
         concept_type: Option<PayrollConceptType>,
         scope: Option<PayrollConceptScope>,
+        period: Option<PayrollConceptPeriod>,
+        active: Option<bool>,
     ) -> AppResult<Option<PayrollConcept>> {
-        let payload = build_update_payload(code, name, concept_type, scope)?;
+        let payload = build_update_payload(code, name, concept_type, scope, period, active)?;
         let record: Option<PayrollConceptRecord> = self
             .client
             .update((PAYROLL_CONCEPT_TABLE, id.to_string()))
@@ -117,6 +125,8 @@ struct PayrollConceptRecord {
     #[serde(rename = "type")]
     concept_type: PayrollConceptType,
     scope: PayrollConceptScope,
+    period: PayrollConceptPeriod,
+    active: bool,
     payroll_id: String,
 }
 
@@ -141,6 +151,8 @@ fn record_to_domain(record: PayrollConceptRecord) -> AppResult<PayrollConcept> {
         record.name,
         record.concept_type,
         record.scope,
+        record.period,
+        record.active,
         payroll_id,
     ))
 }
@@ -150,6 +162,8 @@ fn build_update_payload(
     name: Option<String>,
     concept_type: Option<PayrollConceptType>,
     scope: Option<PayrollConceptScope>,
+    period: Option<PayrollConceptPeriod>,
+    active: Option<bool>,
 ) -> AppResult<JsonValue> {
     let mut object = Map::new();
 
@@ -173,6 +187,17 @@ fn build_update_payload(
             AppError::internal("failed to serialize concept scope for update payload")
         })?;
         object.insert("scope".to_string(), value);
+    }
+
+    if let Some(period) = period {
+        let value = serde_json::to_value(period).map_err(|_| {
+            AppError::internal("failed to serialize concept period for update payload")
+        })?;
+        object.insert("period".to_string(), value);
+    }
+
+    if let Some(active) = active {
+        object.insert("active".to_string(), JsonValue::Bool(active));
     }
 
     if object.is_empty() {
