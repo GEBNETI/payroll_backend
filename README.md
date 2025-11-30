@@ -9,6 +9,8 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 - Payroll management tied to organizations.
 - Division management tied to payrolls with optional parent–child relationships.
 - Job management tied to payrolls with salary tracking.
+- Bank management tied to organizations, used by employees for deposit info.
+- Employee management scoped to a division and payroll with job/bank validation.
 - SurrealDB repository implementations plus in-memory doubles for integration tests.
 
 ## HTTP Endpoints
@@ -36,6 +38,16 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id` | Fetch division |
 | PUT    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id` | Update division fields / parent |
 | DELETE | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id` | Delete division |
+| POST   | `/organizations/:organization_id/banks` | Create bank within an organization |
+| GET    | `/organizations/:organization_id/banks` | List banks for an organization |
+| GET    | `/organizations/:organization_id/banks/:bank_id` | Fetch bank |
+| PUT    | `/organizations/:organization_id/banks/:bank_id` | Update bank name |
+| DELETE | `/organizations/:organization_id/banks/:bank_id` | Delete bank |
+| POST   | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees` | Create employee inside a division |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees` | List employees for a division |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id` | Fetch employee |
+| PUT    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id` | Update employee |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id` | Delete employee |
 
 ## API Documentation
 
@@ -53,6 +65,7 @@ The documentation stays in sync with the handlers using `utoipa`, so request/res
 | `SURREALDB_DATABASE` | Database name |
 | `SURREALDB_USERNAME` | Auth user |
 | `SURREALDB_PASSWORD` | Auth password |
+| `PORT` (optional) | HTTP port (defaults to `3000`) |
 
 The server fails fast if any of these are missing or invalid.
 

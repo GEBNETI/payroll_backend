@@ -5,8 +5,8 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 
 ## Application Architecture
 - `src/main.rs` bootstraps configuration, networking, and delegates to `server::run`.
-- `src/lib.rs` exposes high-level modules: `server`, `routes`, `handlers`, `domain`, `services`, `infrastructure`, `middleware`, `extractors`, and `error`.
-- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` currently wires the Organization, Payroll, Division, and Job services so handlers can enforce cross-entity invariants.
+- `src/lib.rs` exposes high-level modules: `server`, `routes`, `handlers`, `domain`, `services`, `infrastructure`, `middleware`, `extractors`, `openapi`, and `error`.
+- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` wires the Organization, Payroll, Division, Job, Bank, and Employee services so handlers can enforce cross-entity invariants.
 - `src/routes/` defines small, composable routers per feature (e.g., `routes::health`) that only wire HTTP paths.
 - `src/handlers/` contains request/response logic (`handlers::health::check`) and converts domain data into transport-friendly payloads.
 - `src/domain/` hosts pure business types and helpers (`domain::health::Health`) with no Axum dependencies.
@@ -18,6 +18,8 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 - `/organizations/{organization_id}/payrolls` — CRUD for payrolls inside an organization.
 - `/organizations/{organization_id}/payrolls/{payroll_id}/divisions` — CRUD for divisions within a payroll; optional `parent_division_id` enforces same-payroll adjacency.
 - `/organizations/{organization_id}/payrolls/{payroll_id}/jobs` — CRUD for jobs inside a payroll (`job_title` and `salary` fields are mandatory).
+- `/organizations/{organization_id}/banks` — CRUD for banks tied to an organization (referenced by employees).
+- `/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees` — CRUD for employees scoped to a division with job/bank validations.
 
 ## Build, Test, and Development Commands
 - `cargo check` — fast validation of the codebase before committing.
@@ -40,6 +42,7 @@ The server expects a reachable SurrealDB instance configured via:
 - `SURREALDB_DATABASE`
 - `SURREALDB_USERNAME`
 - `SURREALDB_PASSWORD`
+- `PORT` (optional, defaults to `3000`)
 
 When writing new integration tests, prefer the in-memory repositories under `tests/support` to avoid external DB dependencies.
 
