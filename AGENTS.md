@@ -6,7 +6,7 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 ## Application Architecture
 - `src/main.rs` bootstraps configuration, networking, and delegates to `server::run`.
 - `src/lib.rs` exposes high-level modules: `server`, `routes`, `handlers`, `domain`, `services`, `infrastructure`, `middleware`, `extractors`, `openapi`, and `error`.
-- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` wires the Organization, Payroll, Division, Job, Bank, and Employee services so handlers can enforce cross-entity invariants.
+- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` wires the Organization, Payroll, Division, Job, Bank, Employee, PayrollConcept, PayrollConceptDefinition, and EmployeePayrollConcept services so handlers can enforce cross-entity invariants.
 - `src/routes/` defines small, composable routers per feature (e.g., `routes::health`) that only wire HTTP paths.
 - `src/handlers/` contains request/response logic (`handlers::health::check`) and converts domain data into transport-friendly payloads.
 - `src/domain/` hosts pure business types and helpers (`domain::health::Health`) with no Axum dependencies.
@@ -20,6 +20,9 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 - `/organizations/{organization_id}/payrolls/{payroll_id}/jobs` — CRUD for jobs inside a payroll (`job_title` and `salary` fields are mandatory).
 - `/organizations/{organization_id}/banks` — CRUD for banks tied to an organization (referenced by employees).
 - `/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees` — CRUD for employees scoped to a division with job/bank validations.
+- `/organizations/{organization_id}/payrolls/{payroll_id}/concepts` — CRUD for payroll concepts (`code`, `name`, `type`, `scope`).
+- `/organizations/{organization_id}/payrolls/{payroll_id}/concepts/{concept_id}/definition` — Manage the formula/condition that calculates a global payroll concept.
+- `/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees/{employee_id}/concepts` — Manage employee-specific payroll concept assignments (individual scope concepts with custom amounts).
 
 ## Build, Test, and Development Commands
 - `cargo check` — fast validation of the codebase before committing.

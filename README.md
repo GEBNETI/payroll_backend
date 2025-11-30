@@ -11,6 +11,9 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 - Job management tied to payrolls with salary tracking.
 - Bank management tied to organizations, used by employees for deposit info.
 - Employee management scoped to a division and payroll with job/bank validation.
+- Payroll concept catalog for earnings/deductions, including scope tracking.
+- Global concept definitions that capture the formula and optional condition for each global concept.
+- Employee-specific concept assignments with per-assignment amounts for individual concepts.
 - SurrealDB repository implementations plus in-memory doubles for integration tests.
 
 ## HTTP Endpoints
@@ -33,6 +36,15 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/jobs/:job_id` | Fetch job |
 | PUT    | `/organizations/:organization_id/payrolls/:payroll_id/jobs/:job_id` | Update job title or salary |
 | DELETE | `/organizations/:organization_id/payrolls/:payroll_id/jobs/:job_id` | Delete job |
+| POST   | `/organizations/:organization_id/payrolls/:payroll_id/concepts` | Create payroll concept (`code`, `type`, `scope`) |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/concepts` | List payroll concepts for a payroll |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/concepts/:concept_id` | Fetch payroll concept |
+| PUT    | `/organizations/:organization_id/payrolls/:payroll_id/concepts/:concept_id` | Update payroll concept fields |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id/concepts/:concept_id` | Delete payroll concept |
+| POST   | `/organizations/:organization_id/payrolls/:payroll_id/concepts/:concept_id/definition` | Create global concept definition (formula + condition) |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/concepts/:concept_id/definition` | Fetch concept definition |
+| PUT    | `/organizations/:organization_id/payrolls/:payroll_id/concepts/:concept_id/definition` | Update concept definition |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id/concepts/:concept_id/definition` | Delete concept definition |
 | POST   | `/organizations/:organization_id/payrolls/:payroll_id/divisions` | Create division (optional `parent_division_id`) |
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions` | List divisions for a payroll |
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id` | Fetch division |
@@ -48,6 +60,11 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id` | Fetch employee |
 | PUT    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id` | Update employee |
 | DELETE | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id` | Delete employee |
+| POST   | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id/concepts` | Assign an individual payroll concept to an employee with an amount |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id/concepts` | List concept assignments for an employee |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id/concepts/:assignment_id` | Fetch employee concept assignment |
+| PUT    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id/concepts/:assignment_id` | Update assignment amount |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id/concepts/:assignment_id` | Remove assignment |
 
 ## API Documentation
 
