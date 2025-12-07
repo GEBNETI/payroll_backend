@@ -11,6 +11,7 @@ use crate::{
     services::payroll::PayrollService,
 };
 
+/// Parameters for creating a new payroll concept (used by service layer).
 #[derive(Debug, Clone)]
 pub struct CreatePayrollConceptParams {
     pub code: String,
@@ -21,6 +22,7 @@ pub struct CreatePayrollConceptParams {
     pub active: bool,
 }
 
+/// Parameters for updating an existing payroll concept.
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePayrollConceptParams {
     pub code: Option<String>,
@@ -31,19 +33,22 @@ pub struct UpdatePayrollConceptParams {
     pub active: Option<bool>,
 }
 
+/// Parameters for inserting a payroll concept into the repository.
+#[derive(Debug, Clone)]
+pub struct InsertPayrollConceptParams {
+    pub id: Uuid,
+    pub code: String,
+    pub name: String,
+    pub concept_type: PayrollConceptType,
+    pub scope: PayrollConceptScope,
+    pub period: PayrollConceptPeriod,
+    pub active: bool,
+    pub payroll_id: Uuid,
+}
+
 #[async_trait]
 pub trait PayrollConceptRepository: Send + Sync {
-    async fn insert(
-        &self,
-        id: Uuid,
-        code: String,
-        name: String,
-        concept_type: PayrollConceptType,
-        scope: PayrollConceptScope,
-        period: PayrollConceptPeriod,
-        active: bool,
-        payroll_id: Uuid,
-    ) -> AppResult<PayrollConcept>;
+    async fn insert(&self, params: InsertPayrollConceptParams) -> AppResult<PayrollConcept>;
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollConcept>>;
 
@@ -52,12 +57,7 @@ pub trait PayrollConceptRepository: Send + Sync {
     async fn update(
         &self,
         id: Uuid,
-        code: Option<String>,
-        name: Option<String>,
-        concept_type: Option<PayrollConceptType>,
-        scope: Option<PayrollConceptScope>,
-        period: Option<PayrollConceptPeriod>,
-        active: Option<bool>,
+        params: UpdatePayrollConceptParams,
     ) -> AppResult<Option<PayrollConcept>>;
 
     async fn delete(&self, id: Uuid) -> AppResult<bool>;
@@ -91,19 +91,18 @@ impl PayrollConceptService {
 
         let code = Self::normalize_code(&params.code)?;
         let name = Self::normalize_name(&params.name)?;
-        let id = Uuid::new_v4();
 
         self.repository
-            .insert(
-                id,
+            .insert(InsertPayrollConceptParams {
+                id: Uuid::new_v4(),
                 code,
                 name,
-                params.concept_type,
-                params.scope,
-                params.period,
-                params.active,
+                concept_type: params.concept_type,
+                scope: params.scope,
+                period: params.period,
+                active: params.active,
                 payroll_id,
-            )
+            })
             .await
     }
 
@@ -172,12 +171,14 @@ impl PayrollConceptService {
         self.repository
             .update(
                 concept_id,
-                code,
-                name,
-                params.concept_type,
-                params.scope,
-                params.period,
-                params.active,
+                UpdatePayrollConceptParams {
+                    code,
+                    name,
+                    concept_type: params.concept_type,
+                    scope: params.scope,
+                    period: params.period,
+                    active: params.active,
+                },
             )
             .await
     }

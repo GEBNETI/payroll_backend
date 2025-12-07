@@ -1,4 +1,4 @@
-use axum::{Router, routing::post};
+use axum::{routing::post, Router};
 
 use crate::{handlers, server::AppState};
 

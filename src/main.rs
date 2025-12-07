@@ -1,7 +1,7 @@
 use std::{env, net::SocketAddr, str::FromStr};
 
 use tracing::{error, info};
-use tracing_subscriber::{EnvFilter, filter::Directive};
+use tracing_subscriber::{filter::Directive, EnvFilter};
 
 #[tokio::main]
 async fn main() {

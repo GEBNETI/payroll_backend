@@ -1,15 +1,11 @@
 use serde::Deserialize;
-use serde_json::{Map, Value as JsonValue, json};
-use surrealdb::{
-    Connection, Surreal,
-    engine::any::Any,
-    sql::{Id, Thing},
-};
+use serde_json::{json, Map, Value as JsonValue};
+use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
     domain::job::Job,
-    error::{AppError, AppResult},
+    error::{parse_thing_id, parse_uuid_field, AppError, AppResult},
     services::job::JobRepository,
 };
 
@@ -105,19 +101,8 @@ struct JobRecord {
 }
 
 fn record_to_domain(record: JobRecord) -> AppResult<Job> {
-    let id = match record.id.id {
-        Id::String(value) => Uuid::parse_str(&value)
-            .map_err(|_| AppError::internal("stored job id is not a UUID"))?,
-        Id::Uuid(value) => uuid::Uuid::from(value),
-        _ => {
-            return Err(AppError::internal(
-                "stored job identifier is not a supported format",
-            ));
-        }
-    };
-
-    let payroll_id = Uuid::parse_str(&record.payroll_id)
-        .map_err(|_| AppError::internal("stored job payroll id is not a UUID"))?;
+    let id = parse_thing_id(&record.id.id, "stored job id")?;
+    let payroll_id = parse_uuid_field(&record.payroll_id, "stored job payroll_id")?;
 
     Ok(Job::new(id, record.job_title, record.salary, payroll_id))
 }

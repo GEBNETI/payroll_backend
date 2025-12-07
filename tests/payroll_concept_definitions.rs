@@ -2,12 +2,12 @@
 mod support;
 
 use axum::{
-    Router,
     body::{Body, Bytes},
     http::{Request, StatusCode},
+    Router,
 };
 use http_body_util::BodyExt;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use tower::ServiceExt;
 use uuid::Uuid;
 

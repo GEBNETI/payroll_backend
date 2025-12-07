@@ -1,18 +1,17 @@
 use serde::Deserialize;
-use serde_json::{Map, Value as JsonValue, json};
-use surrealdb::{
-    Connection, Surreal,
-    engine::any::Any,
-    sql::{Id, Thing},
-};
+use serde_json::{json, Map, Value as JsonValue};
+use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
     domain::payroll_concept::{
-        PayrollConcept, PayrollConceptPeriod, PayrollConceptScope, PayrollConceptType,
+        NewPayrollConceptData, PayrollConcept, PayrollConceptPeriod, PayrollConceptScope,
+        PayrollConceptType,
     },
-    error::{AppError, AppResult},
-    services::payroll_concept::PayrollConceptRepository,
+    error::{parse_thing_id, parse_uuid_field, AppError, AppResult},
+    services::payroll_concept::{
+        InsertPayrollConceptParams, PayrollConceptRepository, UpdatePayrollConceptParams,
+    },
 };
 
 const PAYROLL_CONCEPT_TABLE: &str = "payroll_concept";
@@ -39,28 +38,18 @@ impl<C> PayrollConceptRepository for SurrealPayrollConceptRepository<C>
 where
     C: Connection + Clone + Send + Sync + 'static,
 {
-    async fn insert(
-        &self,
-        id: Uuid,
-        code: String,
-        name: String,
-        concept_type: PayrollConceptType,
-        scope: PayrollConceptScope,
-        period: PayrollConceptPeriod,
-        active: bool,
-        payroll_id: Uuid,
-    ) -> AppResult<PayrollConcept> {
+    async fn insert(&self, params: InsertPayrollConceptParams) -> AppResult<PayrollConcept> {
         let record: Option<PayrollConceptRecord> = self
             .client
-            .create((PAYROLL_CONCEPT_TABLE, id.to_string()))
+            .create((PAYROLL_CONCEPT_TABLE, params.id.to_string()))
             .content(json!({
-                "code": code,
-                "name": name,
-                "type": concept_type,
-                "scope": scope,
-                "period": period,
-                "active": active,
-                "payroll_id": payroll_id,
+                "code": params.code,
+                "name": params.name,
+                "type": params.concept_type,
+                "scope": params.scope,
+                "period": params.period,
+                "active": params.active,
+                "payroll_id": params.payroll_id,
             }))
             .await?;
 
@@ -91,14 +80,9 @@ where
     async fn update(
         &self,
         id: Uuid,
-        code: Option<String>,
-        name: Option<String>,
-        concept_type: Option<PayrollConceptType>,
-        scope: Option<PayrollConceptScope>,
-        period: Option<PayrollConceptPeriod>,
-        active: Option<bool>,
+        params: UpdatePayrollConceptParams,
     ) -> AppResult<Option<PayrollConcept>> {
-        let payload = build_update_payload(code, name, concept_type, scope, period, active)?;
+        let payload = build_update_payload(params)?;
         let record: Option<PayrollConceptRecord> = self
             .client
             .update((PAYROLL_CONCEPT_TABLE, id.to_string()))
@@ -131,72 +115,54 @@ struct PayrollConceptRecord {
 }
 
 fn record_to_domain(record: PayrollConceptRecord) -> AppResult<PayrollConcept> {
-    let id = match record.id.id {
-        Id::String(value) => Uuid::parse_str(&value)
-            .map_err(|_| AppError::internal("stored payroll concept id is not a UUID"))?,
-        Id::Uuid(value) => uuid::Uuid::from(value),
-        _ => {
-            return Err(AppError::internal(
-                "stored payroll concept identifier is not a supported format",
-            ));
-        }
-    };
+    let id = parse_thing_id(&record.id.id, "stored payroll concept id")?;
+    let payroll_id = parse_uuid_field(&record.payroll_id, "stored payroll concept payroll_id")?;
 
-    let payroll_id = Uuid::parse_str(&record.payroll_id)
-        .map_err(|_| AppError::internal("stored payroll concept payroll id is not a UUID"))?;
-
-    Ok(PayrollConcept::new(
+    Ok(PayrollConcept::new(NewPayrollConceptData {
         id,
-        record.code,
-        record.name,
-        record.concept_type,
-        record.scope,
-        record.period,
-        record.active,
+        code: record.code,
+        name: record.name,
+        concept_type: record.concept_type,
+        scope: record.scope,
+        period: record.period,
+        active: record.active,
         payroll_id,
-    ))
+    }))
 }
 
-fn build_update_payload(
-    code: Option<String>,
-    name: Option<String>,
-    concept_type: Option<PayrollConceptType>,
-    scope: Option<PayrollConceptScope>,
-    period: Option<PayrollConceptPeriod>,
-    active: Option<bool>,
-) -> AppResult<JsonValue> {
+fn build_update_payload(params: UpdatePayrollConceptParams) -> AppResult<JsonValue> {
     let mut object = Map::new();
 
-    if let Some(code) = code {
+    if let Some(code) = params.code {
         object.insert("code".to_string(), JsonValue::String(code));
     }
 
-    if let Some(name) = name {
+    if let Some(name) = params.name {
         object.insert("name".to_string(), JsonValue::String(name));
     }
 
-    if let Some(concept_type) = concept_type {
+    if let Some(concept_type) = params.concept_type {
         let value = serde_json::to_value(concept_type).map_err(|_| {
             AppError::internal("failed to serialize concept type for update payload")
         })?;
         object.insert("type".to_string(), value);
     }
 
-    if let Some(scope) = scope {
+    if let Some(scope) = params.scope {
         let value = serde_json::to_value(scope).map_err(|_| {
             AppError::internal("failed to serialize concept scope for update payload")
         })?;
         object.insert("scope".to_string(), value);
     }
 
-    if let Some(period) = period {
+    if let Some(period) = params.period {
         let value = serde_json::to_value(period).map_err(|_| {
             AppError::internal("failed to serialize concept period for update payload")
         })?;
         object.insert("period".to_string(), value);
     }
 
-    if let Some(active) = active {
+    if let Some(active) = params.active {
         object.insert("active".to_string(), JsonValue::Bool(active));
     }
 

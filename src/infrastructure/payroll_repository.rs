@@ -1,15 +1,11 @@
 use serde::Deserialize;
-use serde_json::{Map, Value as JsonValue, json};
-use surrealdb::{
-    Connection, Surreal,
-    engine::any::Any,
-    sql::{Id, Thing},
-};
+use serde_json::{json, Map, Value as JsonValue};
+use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
     domain::payroll::Payroll,
-    error::{AppError, AppResult},
+    error::{parse_thing_id, parse_uuid_field, AppError, AppResult},
     services::payroll::PayrollRepository,
 };
 
@@ -109,19 +105,9 @@ struct PayrollRecord {
 }
 
 fn record_to_domain(record: PayrollRecord) -> AppResult<Payroll> {
-    let id = match record.id.id {
-        Id::String(value) => Uuid::parse_str(&value)
-            .map_err(|_| AppError::internal("stored payroll id is not a UUID"))?,
-        Id::Uuid(value) => uuid::Uuid::from(value),
-        _ => {
-            return Err(AppError::internal(
-                "stored payroll identifier is not a supported format",
-            ));
-        }
-    };
-
-    let organization_id = Uuid::parse_str(&record.organization_id)
-        .map_err(|_| AppError::internal("stored payroll organization id is not a UUID"))?;
+    let id = parse_thing_id(&record.id.id, "stored payroll id")?;
+    let organization_id =
+        parse_uuid_field(&record.organization_id, "stored payroll organization_id")?;
 
     Ok(Payroll::new(
         id,

@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -81,28 +81,28 @@ impl From<PayrollConcept> for PayrollConceptResponse {
     }
 }
 
-impl CreatePayrollConceptRequest {
-    fn into_params(self) -> CreatePayrollConceptParams {
-        CreatePayrollConceptParams {
-            code: self.code,
-            name: self.name,
-            concept_type: self.concept_type,
-            scope: self.scope,
-            period: self.period,
-            active: self.active,
+impl From<CreatePayrollConceptRequest> for CreatePayrollConceptParams {
+    fn from(req: CreatePayrollConceptRequest) -> Self {
+        Self {
+            code: req.code,
+            name: req.name,
+            concept_type: req.concept_type,
+            scope: req.scope,
+            period: req.period,
+            active: req.active,
         }
     }
 }
 
-impl UpdatePayrollConceptRequest {
-    fn into_params(self) -> UpdatePayrollConceptParams {
-        UpdatePayrollConceptParams {
-            code: self.code,
-            name: self.name,
-            concept_type: self.concept_type,
-            scope: self.scope,
-            period: self.period,
-            active: self.active,
+impl From<UpdatePayrollConceptRequest> for UpdatePayrollConceptParams {
+    fn from(req: UpdatePayrollConceptRequest) -> Self {
+        Self {
+            code: req.code,
+            name: req.name,
+            concept_type: req.concept_type,
+            scope: req.scope,
+            period: req.period,
+            active: req.active,
         }
     }
 }
@@ -125,11 +125,7 @@ pub async fn create(
 ) -> AppResult<(StatusCode, Json<PayrollConceptResponse>)> {
     let concept = state
         .payroll_concept_service()
-        .create(
-            params.organization_id,
-            params.payroll_id,
-            payload.into_params(),
-        )
+        .create(params.organization_id, params.payroll_id, payload.into())
         .await?;
 
     Ok((StatusCode::CREATED, Json(concept.into())))
@@ -212,7 +208,7 @@ pub async fn update(
             params.organization_id,
             params.payroll_id,
             params.concept_id,
-            payload.into_params(),
+            payload.into(),
         )
         .await?
         .ok_or_else(|| {

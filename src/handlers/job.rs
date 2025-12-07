@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -60,20 +60,20 @@ impl From<Job> for JobResponse {
     }
 }
 
-impl CreateJobRequest {
-    fn into_params(self) -> CreateJobParams {
-        CreateJobParams {
-            job_title: self.job_title,
-            salary: self.salary,
+impl From<CreateJobRequest> for CreateJobParams {
+    fn from(req: CreateJobRequest) -> Self {
+        Self {
+            job_title: req.job_title,
+            salary: req.salary,
         }
     }
 }
 
-impl UpdateJobRequest {
-    fn into_params(self) -> UpdateJobParams {
-        UpdateJobParams {
-            job_title: self.job_title,
-            salary: self.salary,
+impl From<UpdateJobRequest> for UpdateJobParams {
+    fn from(req: UpdateJobRequest) -> Self {
+        Self {
+            job_title: req.job_title,
+            salary: req.salary,
         }
     }
 }
@@ -96,11 +96,7 @@ pub async fn create(
 ) -> AppResult<(StatusCode, Json<JobResponse>)> {
     let job = state
         .job_service()
-        .create(
-            params.organization_id,
-            params.payroll_id,
-            payload.into_params(),
-        )
+        .create(params.organization_id, params.payroll_id, payload.into())
         .await?;
 
     Ok((StatusCode::CREATED, Json(job.into())))
@@ -180,7 +176,7 @@ pub async fn update(
             params.organization_id,
             params.payroll_id,
             params.job_id,
-            payload.into_params(),
+            payload.into(),
         )
         .await?
         .ok_or_else(|| {

@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -65,20 +65,18 @@ impl From<EmployeePayrollConcept> for EmployeePayrollConceptResponse {
     }
 }
 
-impl CreateEmployeePayrollConceptRequest {
-    fn into_params(self) -> CreateEmployeePayrollConceptParams {
-        CreateEmployeePayrollConceptParams {
-            payroll_concept_id: self.payroll_concept_id,
-            amount: self.amount,
+impl From<CreateEmployeePayrollConceptRequest> for CreateEmployeePayrollConceptParams {
+    fn from(req: CreateEmployeePayrollConceptRequest) -> Self {
+        Self {
+            payroll_concept_id: req.payroll_concept_id,
+            amount: req.amount,
         }
     }
 }
 
-impl UpdateEmployeePayrollConceptRequest {
-    fn into_params(self) -> UpdateEmployeePayrollConceptParams {
-        UpdateEmployeePayrollConceptParams {
-            amount: self.amount,
-        }
+impl From<UpdateEmployeePayrollConceptRequest> for UpdateEmployeePayrollConceptParams {
+    fn from(req: UpdateEmployeePayrollConceptRequest) -> Self {
+        Self { amount: req.amount }
     }
 }
 
@@ -105,7 +103,7 @@ pub async fn create(
             params.payroll_id,
             params.division_id,
             params.employee_id,
-            payload.into_params(),
+            payload.into(),
         )
         .await?;
 
@@ -204,7 +202,7 @@ pub async fn update(
             params.division_id,
             params.employee_id,
             params.assignment_id,
-            payload.into_params(),
+            payload.into(),
         )
         .await?
         .ok_or_else(|| {

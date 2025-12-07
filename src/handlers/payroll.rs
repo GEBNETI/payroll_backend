@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -58,20 +58,20 @@ impl From<Payroll> for PayrollResponse {
     }
 }
 
-impl CreatePayrollRequest {
-    fn into_params(self) -> CreatePayrollParams {
-        CreatePayrollParams {
-            name: self.name,
-            description: self.description,
+impl From<CreatePayrollRequest> for CreatePayrollParams {
+    fn from(req: CreatePayrollRequest) -> Self {
+        Self {
+            name: req.name,
+            description: req.description,
         }
     }
 }
 
-impl UpdatePayrollRequest {
-    fn into_params(self) -> UpdatePayrollParams {
-        UpdatePayrollParams {
-            name: self.name,
-            description: self.description,
+impl From<UpdatePayrollRequest> for UpdatePayrollParams {
+    fn from(req: UpdatePayrollRequest) -> Self {
+        Self {
+            name: req.name,
+            description: req.description,
         }
     }
 }
@@ -94,7 +94,7 @@ pub async fn create(
 ) -> AppResult<(StatusCode, Json<PayrollResponse>)> {
     let payroll = state
         .payroll_service()
-        .create(params.organization_id, payload.into_params())
+        .create(params.organization_id, payload.into())
         .await?;
 
     Ok((StatusCode::CREATED, Json(payroll.into())))
@@ -167,11 +167,7 @@ pub async fn update(
 ) -> AppResult<Json<PayrollResponse>> {
     let payroll = state
         .payroll_service()
-        .update(
-            params.organization_id,
-            params.payroll_id,
-            payload.into_params(),
-        )
+        .update(params.organization_id, params.payroll_id, payload.into())
         .await?
         .ok_or_else(|| {
             AppError::not_found(format!(

@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
+    Json,
 };
 use chrono::NaiveDate;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -139,52 +139,52 @@ impl From<Employee> for EmployeeResponse {
     }
 }
 
-impl CreateEmployeeRequest {
-    fn into_params(self) -> CreateEmployeeParams {
-        CreateEmployeeParams {
-            id_number: self.id_number,
-            last_name: self.last_name,
-            first_name: self.first_name,
-            address: self.address,
-            phone: self.phone,
-            place_of_birth: self.place_of_birth,
-            date_of_birth: self.date_of_birth,
-            nationality: self.nationality,
-            marital_status: self.marital_status,
-            gender: self.gender,
-            hire_date: self.hire_date,
-            termination_date: self.termination_date,
-            clasification: self.clasification,
-            job_id: self.job_id,
-            bank_id: self.bank_id,
-            bank_account: self.bank_account,
-            status: self.status,
-            hours: self.hours,
+impl From<CreateEmployeeRequest> for CreateEmployeeParams {
+    fn from(req: CreateEmployeeRequest) -> Self {
+        Self {
+            id_number: req.id_number,
+            last_name: req.last_name,
+            first_name: req.first_name,
+            address: req.address,
+            phone: req.phone,
+            place_of_birth: req.place_of_birth,
+            date_of_birth: req.date_of_birth,
+            nationality: req.nationality,
+            marital_status: req.marital_status,
+            gender: req.gender,
+            hire_date: req.hire_date,
+            termination_date: req.termination_date,
+            clasification: req.clasification,
+            job_id: req.job_id,
+            bank_id: req.bank_id,
+            bank_account: req.bank_account,
+            status: req.status,
+            hours: req.hours,
         }
     }
 }
 
-impl UpdateEmployeeRequest {
-    fn into_params(self) -> UpdateEmployeeParams {
-        UpdateEmployeeParams {
-            id_number: self.id_number,
-            last_name: self.last_name,
-            first_name: self.first_name,
-            address: self.address,
-            phone: self.phone,
-            place_of_birth: self.place_of_birth,
-            date_of_birth: self.date_of_birth,
-            nationality: self.nationality,
-            marital_status: self.marital_status,
-            gender: self.gender,
-            hire_date: self.hire_date,
-            termination_date: self.termination_date,
-            clasification: self.clasification,
-            job_id: self.job_id,
-            bank_id: self.bank_id,
-            bank_account: self.bank_account,
-            status: self.status,
-            hours: self.hours,
+impl From<UpdateEmployeeRequest> for UpdateEmployeeParams {
+    fn from(req: UpdateEmployeeRequest) -> Self {
+        Self {
+            id_number: req.id_number,
+            last_name: req.last_name,
+            first_name: req.first_name,
+            address: req.address,
+            phone: req.phone,
+            place_of_birth: req.place_of_birth,
+            date_of_birth: req.date_of_birth,
+            nationality: req.nationality,
+            marital_status: req.marital_status,
+            gender: req.gender,
+            hire_date: req.hire_date,
+            termination_date: req.termination_date,
+            clasification: req.clasification,
+            job_id: req.job_id,
+            bank_id: req.bank_id,
+            bank_account: req.bank_account,
+            status: req.status,
+            hours: req.hours,
         }
     }
 }
@@ -218,7 +218,7 @@ pub async fn create(
             params.organization_id,
             params.payroll_id,
             params.division_id,
-            payload.into_params(),
+            payload.into(),
         )
         .await?;
 
@@ -309,7 +309,7 @@ pub async fn update(
             params.payroll_id,
             params.division_id,
             params.employee_id,
-            payload.into_params(),
+            payload.into(),
         )
         .await?
         .ok_or_else(|| {
