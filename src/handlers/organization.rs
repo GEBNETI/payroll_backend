@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -45,15 +45,15 @@ impl From<Organization> for OrganizationResponse {
     }
 }
 
-impl CreateOrganizationRequest {
-    fn into_params(self) -> CreateOrganizationParams {
-        CreateOrganizationParams { name: self.name }
+impl From<CreateOrganizationRequest> for CreateOrganizationParams {
+    fn from(req: CreateOrganizationRequest) -> Self {
+        Self { name: req.name }
     }
 }
 
-impl UpdateOrganizationRequest {
-    fn into_params(self) -> UpdateOrganizationParams {
-        UpdateOrganizationParams { name: self.name }
+impl From<UpdateOrganizationRequest> for UpdateOrganizationParams {
+    fn from(req: UpdateOrganizationRequest) -> Self {
+        Self { name: req.name }
     }
 }
 
@@ -71,10 +71,7 @@ pub async fn create(
     State(state): State<AppState>,
     Json(payload): Json<CreateOrganizationRequest>,
 ) -> AppResult<(StatusCode, Json<OrganizationResponse>)> {
-    let organization = state
-        .organization_service()
-        .create(payload.into_params())
-        .await?;
+    let organization = state.organization_service().create(payload.into()).await?;
 
     Ok((StatusCode::CREATED, Json(organization.into())))
 }
@@ -142,7 +139,7 @@ pub async fn update(
     let id = params.id;
     let organization = state
         .organization_service()
-        .update(id, payload.into_params())
+        .update(id, payload.into())
         .await?
         .ok_or_else(|| AppError::not_found(format!("organization `{id}` not found")))?;
 

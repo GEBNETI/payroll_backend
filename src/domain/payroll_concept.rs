@@ -43,26 +43,30 @@ pub struct PayrollConcept {
     pub payroll_id: Uuid,
 }
 
+/// Data needed to create a PayrollConcept.
+#[derive(Clone, Debug)]
+pub struct NewPayrollConceptData {
+    pub id: Uuid,
+    pub code: String,
+    pub name: String,
+    pub concept_type: PayrollConceptType,
+    pub scope: PayrollConceptScope,
+    pub period: PayrollConceptPeriod,
+    pub active: bool,
+    pub payroll_id: Uuid,
+}
+
 impl PayrollConcept {
-    pub fn new(
-        id: Uuid,
-        code: impl Into<String>,
-        name: impl Into<String>,
-        concept_type: PayrollConceptType,
-        scope: PayrollConceptScope,
-        period: PayrollConceptPeriod,
-        active: bool,
-        payroll_id: Uuid,
-    ) -> Self {
+    pub fn new(data: NewPayrollConceptData) -> Self {
         Self {
-            id,
-            code: code.into(),
-            name: name.into(),
-            concept_type,
-            scope,
-            period,
-            active,
-            payroll_id,
+            id: data.id,
+            code: data.code,
+            name: data.name,
+            concept_type: data.concept_type,
+            scope: data.scope,
+            period: data.period,
+            active: data.active,
+            payroll_id: data.payroll_id,
         }
     }
 }

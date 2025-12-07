@@ -1,15 +1,11 @@
 use serde::Deserialize;
-use serde_json::{Map, Value as JsonValue, json};
-use surrealdb::{
-    Connection, Surreal,
-    engine::any::Any,
-    sql::{Id, Thing},
-};
+use serde_json::{json, Map, Value as JsonValue};
+use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
     domain::bank::Bank,
-    error::{AppError, AppResult},
+    error::{parse_thing_id, parse_uuid_field, AppError, AppResult},
     services::bank::BankRepository,
 };
 
@@ -92,19 +88,8 @@ struct BankRecord {
 }
 
 fn record_to_domain(record: BankRecord) -> AppResult<Bank> {
-    let id = match record.id.id {
-        Id::String(value) => Uuid::parse_str(&value)
-            .map_err(|_| AppError::internal("stored bank id is not a UUID"))?,
-        Id::Uuid(value) => uuid::Uuid::from(value),
-        _ => {
-            return Err(AppError::internal(
-                "stored bank identifier is not a supported format",
-            ));
-        }
-    };
-
-    let organization_id = Uuid::parse_str(&record.organization_id)
-        .map_err(|_| AppError::internal("stored bank organization id is not a UUID"))?;
+    let id = parse_thing_id(&record.id.id, "stored bank id")?;
+    let organization_id = parse_uuid_field(&record.organization_id, "stored bank organization_id")?;
 
     Ok(Bank::new(id, record.name, organization_id))
 }

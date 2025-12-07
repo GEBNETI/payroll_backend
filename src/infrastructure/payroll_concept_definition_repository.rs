@@ -1,15 +1,11 @@
 use serde::Deserialize;
-use serde_json::{Map, Value as JsonValue, json};
-use surrealdb::{
-    Connection, Surreal,
-    engine::any::Any,
-    sql::{Id, Thing},
-};
+use serde_json::{json, Map, Value as JsonValue};
+use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
     domain::payroll_concept_definition::PayrollConceptDefinition,
-    error::{AppError, AppResult},
+    error::{parse_thing_id, parse_uuid_field, AppError, AppResult},
     services::payroll_concept_definition::PayrollConceptDefinitionRepository,
 };
 
@@ -107,21 +103,11 @@ struct Record {
 }
 
 fn record_to_domain(record: Record) -> AppResult<PayrollConceptDefinition> {
-    let id = match record.id.id {
-        Id::String(value) => Uuid::parse_str(&value).map_err(|_| {
-            AppError::internal("stored payroll concept definition id is not a UUID")
-        })?,
-        Id::Uuid(value) => uuid::Uuid::from(value),
-        _ => {
-            return Err(AppError::internal(
-                "stored payroll concept definition identifier is not a supported format",
-            ));
-        }
-    };
-
-    let payroll_concept_id = Uuid::parse_str(&record.payroll_concept_id).map_err(|_| {
-        AppError::internal("stored payroll concept definition concept id is not a UUID")
-    })?;
+    let id = parse_thing_id(&record.id.id, "stored payroll concept definition id")?;
+    let payroll_concept_id = parse_uuid_field(
+        &record.payroll_concept_id,
+        "stored payroll concept definition payroll_concept_id",
+    )?;
 
     Ok(PayrollConceptDefinition::new(
         id,

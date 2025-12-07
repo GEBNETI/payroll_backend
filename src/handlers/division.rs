@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
+    Json,
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -70,24 +70,24 @@ impl From<Division> for DivisionResponse {
     }
 }
 
-impl CreateDivisionRequest {
-    fn into_params(self) -> CreateDivisionParams {
-        CreateDivisionParams {
-            name: self.name,
-            description: self.description,
-            budget_code: self.budget_code,
-            parent_division_id: self.parent_division_id,
+impl From<CreateDivisionRequest> for CreateDivisionParams {
+    fn from(req: CreateDivisionRequest) -> Self {
+        Self {
+            name: req.name,
+            description: req.description,
+            budget_code: req.budget_code,
+            parent_division_id: req.parent_division_id,
         }
     }
 }
 
-impl UpdateDivisionRequest {
-    fn into_params(self) -> UpdateDivisionParams {
-        UpdateDivisionParams {
-            name: self.name,
-            description: self.description,
-            budget_code: self.budget_code,
-            parent_division_id: self.parent_division_id,
+impl From<UpdateDivisionRequest> for UpdateDivisionParams {
+    fn from(req: UpdateDivisionRequest) -> Self {
+        Self {
+            name: req.name,
+            description: req.description,
+            budget_code: req.budget_code,
+            parent_division_id: req.parent_division_id,
         }
     }
 }
@@ -117,11 +117,7 @@ pub async fn create(
 ) -> AppResult<(StatusCode, Json<DivisionResponse>)> {
     let division = state
         .division_service()
-        .create(
-            params.organization_id,
-            params.payroll_id,
-            payload.into_params(),
-        )
+        .create(params.organization_id, params.payroll_id, payload.into())
         .await?;
 
     Ok((StatusCode::CREATED, Json(division.into())))
@@ -205,7 +201,7 @@ pub async fn update(
             params.organization_id,
             params.payroll_id,
             params.division_id,
-            payload.into_params(),
+            payload.into(),
         )
         .await?
         .ok_or_else(|| {

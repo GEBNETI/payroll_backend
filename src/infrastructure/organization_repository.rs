@@ -1,15 +1,11 @@
 use serde::Deserialize;
-use serde_json::{Map, Value as JsonValue, json};
-use surrealdb::{
-    Connection, Surreal,
-    engine::any::Any,
-    sql::{Id, Thing},
-};
+use serde_json::{json, Map, Value as JsonValue};
+use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
     domain::organization::Organization,
-    error::{AppError, AppResult},
+    error::{parse_thing_id, AppError, AppResult},
     services::organization::OrganizationRepository,
 };
 
@@ -93,17 +89,7 @@ struct OrganizationRecord {
 }
 
 fn record_to_domain(record: OrganizationRecord) -> AppResult<Organization> {
-    let id = match record.id.id {
-        Id::String(value) => Uuid::parse_str(&value)
-            .map_err(|_| AppError::internal("stored organization id is not a UUID"))?,
-        Id::Uuid(value) => uuid::Uuid::from(value),
-        _ => {
-            return Err(AppError::internal(
-                "stored organization identifier is not a supported format",
-            ));
-        }
-    };
-
+    let id = parse_thing_id(&record.id.id, "stored organization id")?;
     Ok(Organization::new(id, record.name))
 }
 

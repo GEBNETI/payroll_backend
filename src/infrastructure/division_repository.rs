@@ -1,15 +1,11 @@
 use serde::Deserialize;
-use serde_json::{Map, Value as JsonValue, json};
-use surrealdb::{
-    Connection, Surreal,
-    engine::any::Any,
-    sql::{Id, Thing},
-};
+use serde_json::{json, Map, Value as JsonValue};
+use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
     domain::division::Division,
-    error::{AppError, AppResult},
+    error::{parse_thing_id, parse_uuid_field, AppError, AppResult},
     services::division::DivisionRepository,
 };
 
@@ -118,26 +114,13 @@ struct DivisionRecord {
 }
 
 fn record_to_domain(record: DivisionRecord) -> AppResult<Division> {
-    let id = match record.id.id {
-        Id::String(value) => Uuid::parse_str(&value)
-            .map_err(|_| AppError::internal("stored division id is not a UUID"))?,
-        Id::Uuid(value) => uuid::Uuid::from(value),
-        _ => {
-            return Err(AppError::internal(
-                "stored division identifier is not a supported format",
-            ));
-        }
-    };
-
-    let payroll_id = Uuid::parse_str(&record.payroll_id)
-        .map_err(|_| AppError::internal("stored division payroll id is not a UUID"))?;
-    let parent_division_id = match record.parent_division_id {
-        Some(value) => Some(
-            Uuid::parse_str(&value)
-                .map_err(|_| AppError::internal("stored parent division id is not a UUID"))?,
-        ),
-        None => None,
-    };
+    let id = parse_thing_id(&record.id.id, "stored division id")?;
+    let payroll_id = parse_uuid_field(&record.payroll_id, "stored division payroll_id")?;
+    let parent_division_id = record
+        .parent_division_id
+        .as_deref()
+        .map(|v| parse_uuid_field(v, "stored division parent_division_id"))
+        .transpose()?;
 
     Ok(Division::new(
         id,

@@ -13,9 +13,7 @@ use nomina::{
         job::Job,
         organization::Organization,
         payroll::Payroll,
-        payroll_concept::{
-            PayrollConcept, PayrollConceptPeriod, PayrollConceptScope, PayrollConceptType,
-        },
+        payroll_concept::{NewPayrollConceptData, PayrollConcept},
         payroll_concept_definition::PayrollConceptDefinition,
     },
     error::AppResult,
@@ -27,7 +25,9 @@ use nomina::{
         job::JobRepository,
         organization::OrganizationRepository,
         payroll::PayrollRepository,
-        payroll_concept::PayrollConceptRepository,
+        payroll_concept::{
+            InsertPayrollConceptParams, PayrollConceptRepository, UpdatePayrollConceptParams,
+        },
         payroll_concept_definition::PayrollConceptDefinitionRepository,
     },
 };
@@ -324,27 +324,17 @@ pub struct InMemoryPayrollConceptRepository {
 
 #[async_trait]
 impl PayrollConceptRepository for InMemoryPayrollConceptRepository {
-    async fn insert(
-        &self,
-        id: Uuid,
-        code: String,
-        name: String,
-        concept_type: PayrollConceptType,
-        scope: PayrollConceptScope,
-        period: PayrollConceptPeriod,
-        active: bool,
-        payroll_id: Uuid,
-    ) -> AppResult<PayrollConcept> {
-        let concept = PayrollConcept::new(
-            id,
-            code,
-            name,
-            concept_type,
-            scope,
-            period,
-            active,
-            payroll_id,
-        );
+    async fn insert(&self, params: InsertPayrollConceptParams) -> AppResult<PayrollConcept> {
+        let concept = PayrollConcept::new(NewPayrollConceptData {
+            id: params.id,
+            code: params.code,
+            name: params.name,
+            concept_type: params.concept_type,
+            scope: params.scope,
+            period: params.period,
+            active: params.active,
+            payroll_id: params.payroll_id,
+        });
         self.store.write().await.insert(concept.id, concept.clone());
         Ok(concept)
     }
@@ -367,31 +357,26 @@ impl PayrollConceptRepository for InMemoryPayrollConceptRepository {
     async fn update(
         &self,
         id: Uuid,
-        code: Option<String>,
-        name: Option<String>,
-        concept_type: Option<PayrollConceptType>,
-        scope: Option<PayrollConceptScope>,
-        period: Option<PayrollConceptPeriod>,
-        active: Option<bool>,
+        params: UpdatePayrollConceptParams,
     ) -> AppResult<Option<PayrollConcept>> {
         let mut guard = self.store.write().await;
         if let Some(existing) = guard.get_mut(&id) {
-            if let Some(code) = code {
+            if let Some(code) = params.code {
                 existing.code = code;
             }
-            if let Some(name) = name {
+            if let Some(name) = params.name {
                 existing.name = name;
             }
-            if let Some(concept_type) = concept_type {
+            if let Some(concept_type) = params.concept_type {
                 existing.concept_type = concept_type;
             }
-            if let Some(scope) = scope {
+            if let Some(scope) = params.scope {
                 existing.scope = scope;
             }
-            if let Some(period) = period {
+            if let Some(period) = params.period {
                 existing.period = period;
             }
-            if let Some(active) = active {
+            if let Some(active) = params.active {
                 existing.active = active;
             }
             return Ok(Some(existing.clone()));

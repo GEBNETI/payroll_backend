@@ -1,16 +1,12 @@
 use chrono::NaiveDate;
 use serde::Deserialize;
-use serde_json::{Map, Value as JsonValue, json};
-use surrealdb::{
-    Connection, Surreal,
-    engine::any::Any,
-    sql::{Id, Thing},
-};
+use serde_json::{json, Map, Value as JsonValue};
+use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
     domain::employee::Employee,
-    error::{AppError, AppResult},
+    error::{parse_thing_id, parse_uuid_field, AppError, AppResult},
     services::employee::{EmployeeRepository, UpdateEmployeeParams},
 };
 
@@ -156,31 +152,18 @@ struct EmployeeRecord {
 }
 
 fn record_to_domain(record: EmployeeRecord) -> AppResult<Employee> {
-    let id = match record.id.id {
-        Id::String(value) => Uuid::parse_str(&value)
-            .map_err(|_| AppError::internal("stored employee id is not a UUID"))?,
-        Id::Uuid(value) => uuid::Uuid::from(value),
-        _ => {
-            return Err(AppError::internal(
-                "stored employee identifier is not a supported format",
-            ));
-        }
-    };
-
-    let division_id = Uuid::parse_str(&record.division_id)
-        .map_err(|_| AppError::internal("stored division id is not a UUID"))?;
-    let payroll_id = Uuid::parse_str(&record.payroll_id)
-        .map_err(|_| AppError::internal("stored payroll id is not a UUID"))?;
-    let job_id = Uuid::parse_str(&record.job_id)
-        .map_err(|_| AppError::internal("stored job id is not a UUID"))?;
-    let bank_id = Uuid::parse_str(&record.bank_id)
-        .map_err(|_| AppError::internal("stored bank id is not a UUID"))?;
+    let id = parse_thing_id(&record.id.id, "stored employee id")?;
+    let division_id = parse_uuid_field(&record.division_id, "stored employee division_id")?;
+    let payroll_id = parse_uuid_field(&record.payroll_id, "stored employee payroll_id")?;
+    let job_id = parse_uuid_field(&record.job_id, "stored employee job_id")?;
+    let bank_id = parse_uuid_field(&record.bank_id, "stored employee bank_id")?;
     let date_of_birth = parse_date(&record.date_of_birth, "date of birth")?;
     let hire_date = parse_date(&record.hire_date, "hire date")?;
-    let termination_date = match record.termination_date {
-        Some(value) => Some(parse_date(&value, "termination date")?),
-        None => None,
-    };
+    let termination_date = record
+        .termination_date
+        .as_deref()
+        .map(|v| parse_date(v, "termination date"))
+        .transpose()?;
 
     Ok(Employee::new(
         id,

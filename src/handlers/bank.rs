@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     extract::{Path, State},
     http::StatusCode,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -54,15 +54,15 @@ impl From<Bank> for BankResponse {
     }
 }
 
-impl CreateBankRequest {
-    fn into_params(self) -> CreateBankParams {
-        CreateBankParams { name: self.name }
+impl From<CreateBankRequest> for CreateBankParams {
+    fn from(req: CreateBankRequest) -> Self {
+        Self { name: req.name }
     }
 }
 
-impl UpdateBankRequest {
-    fn into_params(self) -> UpdateBankParams {
-        UpdateBankParams { name: self.name }
+impl From<UpdateBankRequest> for UpdateBankParams {
+    fn from(req: UpdateBankRequest) -> Self {
+        Self { name: req.name }
     }
 }
 
@@ -84,7 +84,7 @@ pub async fn create(
 ) -> AppResult<(StatusCode, Json<BankResponse>)> {
     let bank = state
         .bank_service()
-        .create(params.organization_id, payload.into_params())
+        .create(params.organization_id, payload.into())
         .await?;
 
     Ok((StatusCode::CREATED, Json(bank.into())))
@@ -157,11 +157,7 @@ pub async fn update(
 ) -> AppResult<Json<BankResponse>> {
     let bank = state
         .bank_service()
-        .update(
-            params.organization_id,
-            params.bank_id,
-            payload.into_params(),
-        )
+        .update(params.organization_id, params.bank_id, payload.into())
         .await?
         .ok_or_else(|| {
             AppError::not_found(format!(

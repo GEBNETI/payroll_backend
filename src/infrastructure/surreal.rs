@@ -1,9 +1,9 @@
 use std::env;
 
 use surrealdb::{
-    Surreal,
     engine::any::{self, Any},
     opt::auth::Root,
+    Surreal,
 };
 use thiserror::Error;
 

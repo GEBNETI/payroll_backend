@@ -1,7 +1,8 @@
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::Serialize;
 use surrealdb::Error as SurrealError;
 use thiserror::Error;
+use uuid::Uuid;
 
 pub type AppResult<T> = Result<T, AppError>;
 
@@ -57,6 +58,35 @@ impl From<SurrealError> for AppError {
             message: value.to_string(),
         }
     }
+}
+
+impl From<uuid::Error> for AppError {
+    fn from(value: uuid::Error) -> Self {
+        Self::Internal {
+            message: format!("invalid UUID: {value}"),
+        }
+    }
+}
+
+/// Helper to parse a SurrealDB `Thing.id` into a `Uuid`.
+///
+/// SurrealDB can store record IDs as either strings or native UUIDs,
+/// so this handles both formats.
+pub fn parse_thing_id(id: &surrealdb::sql::Id, context: &str) -> AppResult<Uuid> {
+    use surrealdb::sql::Id;
+    match id {
+        Id::String(value) => Uuid::parse_str(value)
+            .map_err(|_| AppError::internal(format!("{context} is not a valid UUID"))),
+        Id::Uuid(value) => Ok(Uuid::from(*value)),
+        _ => Err(AppError::internal(format!(
+            "{context} is not a supported format"
+        ))),
+    }
+}
+
+/// Helper to parse a string field into a `Uuid`.
+pub fn parse_uuid_field(value: &str, context: &str) -> AppResult<Uuid> {
+    Uuid::parse_str(value).map_err(|_| AppError::internal(format!("{context} is not a valid UUID")))
 }
 
 impl IntoResponse for AppError {
