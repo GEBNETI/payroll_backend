@@ -56,6 +56,7 @@ where
         bank_account: String,
         status: String,
         hours: i32,
+        salary: f64,
         division_id: Uuid,
         payroll_id: Uuid,
     ) -> AppResult<Employee> {
@@ -81,6 +82,7 @@ where
                 "bank_account": bank_account,
                 "status": status,
                 "hours": hours,
+                "salary": salary,
                 "division_id": division_id,
                 "payroll_id": payroll_id,
             }))
@@ -147,6 +149,7 @@ struct EmployeeRecord {
     bank_account: String,
     status: String,
     hours: i32,
+    salary: f64,
     division_id: String,
     payroll_id: String,
 }
@@ -185,6 +188,7 @@ fn record_to_domain(record: EmployeeRecord) -> AppResult<Employee> {
         record.bank_account,
         record.status,
         record.hours,
+        record.salary,
         division_id,
         payroll_id,
     ))
@@ -296,6 +300,10 @@ fn build_update_payload(updates: UpdateEmployeeParams) -> AppResult<JsonValue> {
 
     if let Some(hours) = updates.hours {
         object.insert("hours".to_string(), JsonValue::from(hours));
+    }
+
+    if let Some(salary) = updates.salary {
+        object.insert("salary".to_string(), JsonValue::from(salary));
     }
 
     if object.is_empty() {

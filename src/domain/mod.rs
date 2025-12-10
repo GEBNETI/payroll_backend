@@ -8,3 +8,5 @@ pub mod organization;
 pub mod payroll;
 pub mod payroll_concept;
 pub mod payroll_concept_definition;
+pub mod payroll_history;
+pub mod payroll_history_detail;

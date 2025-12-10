@@ -16,6 +16,8 @@ pub mod organization;
 pub mod payroll;
 pub mod payroll_concept;
 pub mod payroll_concept_definition;
+pub mod payroll_history;
+pub mod payroll_history_detail;
 
 pub fn app_router(state: AppState) -> Router {
     let openapi = ApiDoc::openapi();
@@ -31,6 +33,8 @@ pub fn app_router(state: AppState) -> Router {
         .merge(employee_payroll_concept::router())
         .merge(bank::router())
         .merge(employee::router())
+        .merge(payroll_history::router())
+        .merge(payroll_history_detail::router())
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi))
         .layer(
             TraceLayer::new_for_http()

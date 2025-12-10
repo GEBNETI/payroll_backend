@@ -10,6 +10,7 @@ pub use in_memory_repository::{
     InMemoryBankRepository, InMemoryDivisionRepository, InMemoryEmployeePayrollConceptRepository,
     InMemoryEmployeeRepository, InMemoryJobRepository, InMemoryOrganizationRepository,
     InMemoryPayrollConceptDefinitionRepository, InMemoryPayrollConceptRepository,
+    InMemoryPayrollHistoryDetailRepository, InMemoryPayrollHistoryRepository,
     InMemoryPayrollRepository,
 };
 
@@ -27,6 +28,10 @@ pub fn test_router() -> Router {
         ))
         .with_employee_payroll_concept_repository(Arc::new(
             InMemoryEmployeePayrollConceptRepository::default(),
+        ))
+        .with_payroll_history_repository(Arc::new(InMemoryPayrollHistoryRepository::default()))
+        .with_payroll_history_detail_repository(Arc::new(
+            InMemoryPayrollHistoryDetailRepository::default(),
         ))
         .build();
 

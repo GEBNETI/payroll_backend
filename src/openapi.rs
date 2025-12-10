@@ -49,6 +49,15 @@ use utoipa::OpenApi;
         crate::handlers::payroll_concept_definition::get,
         crate::handlers::payroll_concept_definition::update,
         crate::handlers::payroll_concept_definition::delete,
+        crate::handlers::payroll_history::create,
+        crate::handlers::payroll_history::list,
+        crate::handlers::payroll_history::get,
+        crate::handlers::payroll_history::update,
+        crate::handlers::payroll_history::delete,
+        crate::handlers::payroll_history_detail::create,
+        crate::handlers::payroll_history_detail::list,
+        crate::handlers::payroll_history_detail::get,
+        crate::handlers::payroll_history_detail::delete,
     ),
     components(
         schemas(
@@ -57,11 +66,17 @@ use utoipa::OpenApi;
             crate::domain::payroll::Payroll,
             crate::domain::job::Job,
             crate::domain::payroll_concept::PayrollConcept,
+            crate::domain::payroll_concept::PayrollConceptType,
+            crate::domain::payroll_concept::PayrollConceptScope,
+            crate::domain::payroll_concept::PayrollConceptPeriod,
             crate::domain::payroll_concept_definition::PayrollConceptDefinition,
             crate::domain::division::Division,
             crate::domain::bank::Bank,
             crate::domain::employee::Employee,
             crate::domain::employee_payroll_concept::EmployeePayrollConcept,
+            crate::domain::payroll_history::PayrollHistory,
+            crate::domain::payroll_history::PayrollHistoryStatus,
+            crate::domain::payroll_history_detail::PayrollHistoryDetail,
             crate::handlers::organization::CreateOrganizationRequest,
             crate::handlers::organization::UpdateOrganizationRequest,
             crate::handlers::organization::OrganizationResponse,
@@ -89,6 +104,11 @@ use utoipa::OpenApi;
             crate::handlers::payroll_concept_definition::CreatePayrollConceptDefinitionRequest,
             crate::handlers::payroll_concept_definition::UpdatePayrollConceptDefinitionRequest,
             crate::handlers::payroll_concept_definition::PayrollConceptDefinitionResponse,
+            crate::handlers::payroll_history::CreatePayrollHistoryRequest,
+            crate::handlers::payroll_history::UpdatePayrollHistoryRequest,
+            crate::handlers::payroll_history::PayrollHistoryResponse,
+            crate::handlers::payroll_history_detail::CreatePayrollHistoryDetailRequest,
+            crate::handlers::payroll_history_detail::PayrollHistoryDetailResponse,
         )
     ),
     tags(
@@ -101,6 +121,8 @@ use utoipa::OpenApi;
         (name = "Banks", description = "Bank management"),
         (name = "Employees", description = "Employee management"),
         (name = "Employee Payroll Concepts", description = "Employee-specific payroll concept assignments"),
+        (name = "Payroll History", description = "Payroll history tracking"),
+        (name = "Payroll History Details", description = "Payroll history detail records"),
     )
 )]
 pub struct ApiDoc;

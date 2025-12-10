@@ -38,6 +38,7 @@ pub struct CreateEmployeeRequest {
     pub bank_account: String,
     pub status: String,
     pub hours: i32,
+    pub salary: f64,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -64,6 +65,7 @@ pub struct UpdateEmployeeRequest {
     pub bank_account: Option<String>,
     pub status: Option<String>,
     pub hours: Option<i32>,
+    pub salary: Option<f64>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -90,6 +92,7 @@ pub struct EmployeeResponse {
     pub bank_account: String,
     pub status: String,
     pub hours: i32,
+    pub salary: f64,
     pub division_id: Uuid,
     pub payroll_id: Uuid,
 }
@@ -133,6 +136,7 @@ impl From<Employee> for EmployeeResponse {
             bank_account: value.bank_account,
             status: value.status,
             hours: value.hours,
+            salary: value.salary,
             division_id: value.division_id,
             payroll_id: value.payroll_id,
         }
@@ -160,6 +164,7 @@ impl From<CreateEmployeeRequest> for CreateEmployeeParams {
             bank_account: req.bank_account,
             status: req.status,
             hours: req.hours,
+            salary: req.salary,
         }
     }
 }
@@ -185,6 +190,7 @@ impl From<UpdateEmployeeRequest> for UpdateEmployeeParams {
             bank_account: req.bank_account,
             status: req.status,
             hours: req.hours,
+            salary: req.salary,
         }
     }
 }

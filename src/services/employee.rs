@@ -32,6 +32,7 @@ pub struct CreateEmployeeParams {
     pub bank_account: String,
     pub status: String,
     pub hours: i32,
+    pub salary: f64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -54,6 +55,7 @@ pub struct UpdateEmployeeParams {
     pub bank_account: Option<String>,
     pub status: Option<String>,
     pub hours: Option<i32>,
+    pub salary: Option<f64>,
 }
 
 #[async_trait]
@@ -80,6 +82,7 @@ pub trait EmployeeRepository: Send + Sync {
         bank_account: String,
         status: String,
         hours: i32,
+        salary: f64,
         division_id: Uuid,
         payroll_id: Uuid,
     ) -> AppResult<Employee>;
@@ -154,6 +157,7 @@ impl EmployeeService {
         let bank_account = Self::normalize_field(&params.bank_account, "bank account")?;
         let status = Self::normalize_field(&params.status, "status")?;
         let hours = Self::validate_hours(params.hours)?;
+        let salary = Self::validate_salary(params.salary)?;
         let hire_date = params.hire_date;
         let termination_date = Self::validate_termination_date(hire_date, params.termination_date)?;
 
@@ -179,6 +183,7 @@ impl EmployeeService {
                 bank_account,
                 status,
                 hours,
+                salary,
                 division.id,
                 payroll_id,
             )
@@ -243,6 +248,7 @@ impl EmployeeService {
             && params.bank_account.is_none()
             && params.status.is_none()
             && params.hours.is_none()
+            && params.salary.is_none()
         {
             return Err(AppError::validation("no fields supplied for update"));
         }
@@ -337,6 +343,7 @@ impl EmployeeService {
                 .map(|value| Self::normalize_field(value, "status"))
                 .transpose()?,
             hours: params.hours.map(Self::validate_hours).transpose()?,
+            salary: params.salary.map(Self::validate_salary).transpose()?,
         };
 
         self.repository.update(employee_id, updates).await
@@ -358,6 +365,12 @@ impl EmployeeService {
         }
 
         self.repository.delete(employee_id).await
+    }
+
+    /// Get an employee by ID without requiring division context.
+    /// Used for internal lookups where the caller already knows the employee exists.
+    pub async fn get_by_id(&self, id: Uuid) -> AppResult<Option<Employee>> {
+        self.repository.fetch(id).await
     }
 
     async fn ensure_division_accessible(
@@ -420,6 +433,14 @@ impl EmployeeService {
     fn validate_hours(value: i32) -> AppResult<i32> {
         if value < 0 {
             return Err(AppError::validation("hours cannot be negative"));
+        }
+
+        Ok(value)
+    }
+
+    fn validate_salary(value: f64) -> AppResult<f64> {
+        if value < 0.0 {
+            return Err(AppError::validation("salary cannot be negative"));
         }
 
         Ok(value)
