@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{
     domain::payroll_history::{NewPayrollHistoryData, PayrollHistory, PayrollHistoryStatus},
     error::{AppError, AppResult},
-    services::payroll::PayrollService,
+    services::{organization::OrganizationService, payroll::PayrollService},
 };
 
 #[derive(Debug, Clone)]
@@ -55,16 +55,19 @@ pub trait PayrollHistoryRepository: Send + Sync {
 pub struct PayrollHistoryService {
     repository: Arc<dyn PayrollHistoryRepository>,
     payroll_service: Arc<PayrollService>,
+    organization_service: Arc<OrganizationService>,
 }
 
 impl PayrollHistoryService {
     pub fn new(
         repository: Arc<dyn PayrollHistoryRepository>,
         payroll_service: Arc<PayrollService>,
+        organization_service: Arc<OrganizationService>,
     ) -> Self {
         Self {
             repository,
             payroll_service,
+            organization_service,
         }
     }
 
@@ -243,11 +246,14 @@ impl PayrollHistoryService {
     }
 
     async fn get_organization_name(&self, organization_id: Uuid) -> AppResult<String> {
-        // Since we don't have direct access to OrganizationService,
-        // we'll need to get this through payroll_service or store it differently.
-        // For now, we'll use organization_id as a placeholder and fix the service wiring.
-        // This is a known limitation that will be addressed in server.rs
-        Ok(format!("Organization {}", organization_id))
+        let organization = self
+            .organization_service
+            .get(organization_id)
+            .await?
+            .ok_or_else(|| {
+                AppError::not_found(format!("organization `{organization_id}` not found"))
+            })?;
+        Ok(organization.name)
     }
 
     fn normalize_field(value: &str, field: &str) -> AppResult<String> {
@@ -260,9 +266,7 @@ impl PayrollHistoryService {
 
     fn validate_date_range(start_date: NaiveDate, end_date: NaiveDate) -> AppResult<()> {
         if end_date < start_date {
-            return Err(AppError::validation(
-                "end_date cannot be before start_date",
-            ));
+            return Err(AppError::validation("end_date cannot be before start_date"));
         }
         Ok(())
     }
@@ -275,6 +279,11 @@ impl PayrollHistoryService {
     }
 
     fn validate_amount(value: f64, field: &str) -> AppResult<()> {
+        if !value.is_finite() {
+            return Err(AppError::validation(format!(
+                "{field} must be a valid number"
+            )));
+        }
         if value < 0.0 {
             return Err(AppError::validation(format!("{field} cannot be negative")));
         }

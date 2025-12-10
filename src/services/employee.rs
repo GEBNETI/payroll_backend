@@ -367,6 +367,12 @@ impl EmployeeService {
         self.repository.delete(employee_id).await
     }
 
+    /// Get an employee by ID without requiring division context.
+    /// Used for internal lookups where the caller already knows the employee exists.
+    pub async fn get_by_id(&self, id: Uuid) -> AppResult<Option<Employee>> {
+        self.repository.fetch(id).await
+    }
+
     async fn ensure_division_accessible(
         &self,
         organization_id: Uuid,

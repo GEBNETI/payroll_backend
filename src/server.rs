@@ -331,6 +331,7 @@ impl AppStateBuilder {
         let payroll_history_service = Arc::new(PayrollHistoryService::new(
             payroll_history_repository,
             Arc::clone(&payroll_service),
+            Arc::clone(&organization_service),
         ));
 
         let payroll_history_detail_service = Arc::new(PayrollHistoryDetailService::new(

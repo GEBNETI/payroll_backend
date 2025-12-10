@@ -69,12 +69,9 @@ where
             }))
             .await?;
 
-        record
-            .map(record_to_domain)
-            .transpose()?
-            .ok_or_else(|| {
-                AppError::internal("database did not return created payroll history detail")
-            })
+        record.map(record_to_domain).transpose()?.ok_or_else(|| {
+            AppError::internal("database did not return created payroll history detail")
+        })
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollHistoryDetail>> {
@@ -90,13 +87,16 @@ where
         &self,
         payroll_history_id: Uuid,
     ) -> AppResult<Vec<PayrollHistoryDetail>> {
-        let records: Vec<PayrollHistoryDetailRecord> =
-            self.client.select(PAYROLL_HISTORY_DETAIL_TABLE).await?;
-        records
-            .into_iter()
-            .filter(|record| record.payroll_history_id == payroll_history_id.to_string())
-            .map(record_to_domain)
-            .collect()
+        let mut result = self
+            .client
+            .query(
+                "SELECT * FROM type::table($table) WHERE payroll_history_id = $payroll_history_id",
+            )
+            .bind(("table", PAYROLL_HISTORY_DETAIL_TABLE))
+            .bind(("payroll_history_id", payroll_history_id.to_string()))
+            .await?;
+        let records: Vec<PayrollHistoryDetailRecord> = result.take(0)?;
+        records.into_iter().map(record_to_domain).collect()
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {

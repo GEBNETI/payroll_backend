@@ -71,13 +71,14 @@ where
     }
 
     async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<PayrollHistory>> {
-        let records: Vec<PayrollHistoryRecord> =
-            self.client.select(PAYROLL_HISTORY_TABLE).await?;
-        records
-            .into_iter()
-            .filter(|record| record.payroll_id == payroll_id.to_string())
-            .map(record_to_domain)
-            .collect()
+        let mut result = self
+            .client
+            .query("SELECT * FROM type::table($table) WHERE payroll_id = $payroll_id")
+            .bind(("table", PAYROLL_HISTORY_TABLE))
+            .bind(("payroll_id", payroll_id.to_string()))
+            .await?;
+        let records: Vec<PayrollHistoryRecord> = result.take(0)?;
+        records.into_iter().map(record_to_domain).collect()
     }
 
     async fn update(
@@ -129,8 +130,7 @@ fn record_to_domain(record: PayrollHistoryRecord) -> AppResult<PayrollHistory> {
         &record.organization_id,
         "stored payroll history organization_id",
     )?;
-    let payroll_id =
-        parse_uuid_field(&record.payroll_id, "stored payroll history payroll_id")?;
+    let payroll_id = parse_uuid_field(&record.payroll_id, "stored payroll history payroll_id")?;
     let start_date = parse_date(&record.start_date, "start_date")?;
     let end_date = parse_date(&record.end_date, "end_date")?;
     let created_at = parse_datetime(&record.created_at, "created_at")?;
@@ -217,11 +217,17 @@ fn build_update_payload(params: UpdatePayrollHistoryParams) -> AppResult<JsonVal
     }
 
     if let Some(total_employees) = params.total_employees {
-        object.insert("total_employees".to_string(), JsonValue::from(total_employees));
+        object.insert(
+            "total_employees".to_string(),
+            JsonValue::from(total_employees),
+        );
     }
 
     if let Some(total_earnings) = params.total_earnings {
-        object.insert("total_earnings".to_string(), JsonValue::from(total_earnings));
+        object.insert(
+            "total_earnings".to_string(),
+            JsonValue::from(total_earnings),
+        );
     }
 
     if let Some(total_deductions) = params.total_deductions {

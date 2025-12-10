@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::payroll_concept::{PayrollConceptPeriod, PayrollConceptScope, PayrollConceptType};
+use crate::domain::payroll_concept::{
+    PayrollConceptPeriod, PayrollConceptScope, PayrollConceptType,
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, ToSchema)]
 pub struct PayrollHistoryDetail {

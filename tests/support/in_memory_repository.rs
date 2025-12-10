@@ -691,10 +691,7 @@ impl PayrollConceptDefinitionRepository for InMemoryPayrollConceptDefinitionRepo
 impl PayrollHistoryRepository for InMemoryPayrollHistoryRepository {
     async fn insert(&self, data: NewPayrollHistoryData) -> AppResult<PayrollHistory> {
         let history = PayrollHistory::new(data);
-        self.store
-            .write()
-            .await
-            .insert(history.id, history.clone());
+        self.store.write().await.insert(history.id, history.clone());
         Ok(history)
     }
 

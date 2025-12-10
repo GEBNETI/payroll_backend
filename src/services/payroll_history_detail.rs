@@ -7,9 +7,8 @@ use crate::{
     domain::payroll_history_detail::{NewPayrollHistoryDetailData, PayrollHistoryDetail},
     error::{AppError, AppResult},
     services::{
-        bank::BankService, division::DivisionService, employee::EmployeeService,
-        job::JobService, payroll_concept::PayrollConceptService,
-        payroll_history::PayrollHistoryService,
+        bank::BankService, division::DivisionService, employee::EmployeeService, job::JobService,
+        payroll_concept::PayrollConceptService, payroll_history::PayrollHistoryService,
     },
 };
 
@@ -115,9 +114,7 @@ impl PayrollHistoryDetailService {
             .bank_service
             .get(organization_id, employee.bank_id)
             .await?
-            .ok_or_else(|| {
-                AppError::not_found(format!("bank `{}` not found", employee.bank_id))
-            })?;
+            .ok_or_else(|| AppError::not_found(format!("bank `{}` not found", employee.bank_id)))?;
 
         // Fetch payroll concept
         let concept = self
@@ -192,10 +189,7 @@ impl PayrollHistoryDetailService {
             .ensure_exists(organization_id, payroll_id, history_id)
             .await?;
 
-        let mut details = self
-            .repository
-            .fetch_by_payroll_history(history_id)
-            .await?;
+        let mut details = self.repository.fetch_by_payroll_history(history_id).await?;
         details.sort_by(|a, b| {
             a.employee_last_name
                 .cmp(&b.employee_last_name)
@@ -223,34 +217,21 @@ impl PayrollHistoryDetailService {
         self.repository.delete(detail_id).await
     }
 
-    /// Find an employee by ID across all divisions in a payroll
+    /// Find an employee by ID and verify they belong to the payroll
     async fn find_employee_by_id(
         &self,
-        organization_id: Uuid,
+        _organization_id: Uuid,
         payroll_id: Uuid,
         employee_id: Uuid,
     ) -> AppResult<Option<crate::domain::employee::Employee>> {
-        // Get all divisions for this payroll
-        let divisions = self
-            .division_service
-            .list(organization_id, payroll_id)
-            .await?;
-
-        // Search for the employee in each division
-        for division in divisions {
-            if let Some(employee) = self
-                .employee_service
-                .get(organization_id, payroll_id, division.id, employee_id)
-                .await?
-            {
-                return Ok(Some(employee));
-            }
-        }
-
-        Ok(None)
+        let employee = self.employee_service.get_by_id(employee_id).await?;
+        Ok(employee.filter(|e| e.payroll_id == payroll_id))
     }
 
     fn validate_amount(value: f64) -> AppResult<()> {
+        if !value.is_finite() {
+            return Err(AppError::validation("amount must be a valid number"));
+        }
         if value < 0.0 {
             return Err(AppError::validation("amount cannot be negative"));
         }
