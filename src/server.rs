@@ -15,6 +15,8 @@ use crate::{
         organization_repository::SurrealAnyOrganizationRepository,
         payroll_concept_definition_repository::SurrealAnyPayrollConceptDefinitionRepository,
         payroll_concept_repository::SurrealAnyPayrollConceptRepository,
+        payroll_history_detail_repository::SurrealAnyPayrollHistoryDetailRepository,
+        payroll_history_repository::SurrealAnyPayrollHistoryRepository,
         payroll_repository::SurrealAnyPayrollRepository,
         surreal::{self, SurrealConfig, SurrealConfigError},
     },
@@ -33,6 +35,8 @@ use crate::{
         payroll_concept_definition::{
             PayrollConceptDefinitionRepository, PayrollConceptDefinitionService,
         },
+        payroll_history::{PayrollHistoryRepository, PayrollHistoryService},
+        payroll_history_detail::{PayrollHistoryDetailRepository, PayrollHistoryDetailService},
     },
 };
 
@@ -60,6 +64,8 @@ pub struct AppState {
     payroll_concept_definition_service: Arc<PayrollConceptDefinitionService>,
     bank_service: Arc<BankService>,
     employee_service: Arc<EmployeeService>,
+    payroll_history_service: Arc<PayrollHistoryService>,
+    payroll_history_detail_service: Arc<PayrollHistoryDetailService>,
 }
 
 impl AppState {
@@ -103,6 +109,14 @@ impl AppState {
         Arc::clone(&self.employee_service)
     }
 
+    pub fn payroll_history_service(&self) -> Arc<PayrollHistoryService> {
+        Arc::clone(&self.payroll_history_service)
+    }
+
+    pub fn payroll_history_detail_service(&self) -> Arc<PayrollHistoryDetailService> {
+        Arc::clone(&self.payroll_history_detail_service)
+    }
+
     pub async fn initialize() -> Result<Self, ServerSetupError> {
         let config = SurrealConfig::from_env()?;
         let client = surreal::connect(&config).await?;
@@ -125,6 +139,8 @@ pub struct AppStateBuilder {
     payroll_concept_repository: Option<Arc<dyn PayrollConceptRepository>>,
     payroll_concept_definition_repository: Option<Arc<dyn PayrollConceptDefinitionRepository>>,
     employee_payroll_concept_repository: Option<Arc<dyn EmployeePayrollConceptRepository>>,
+    payroll_history_repository: Option<Arc<dyn PayrollHistoryRepository>>,
+    payroll_history_detail_repository: Option<Arc<dyn PayrollHistoryDetailRepository>>,
 }
 
 impl AppStateBuilder {
@@ -147,7 +163,13 @@ impl AppStateBuilder {
             SurrealAnyPayrollConceptDefinitionRepository::new(client.clone()),
         ));
         self.employee_payroll_concept_repository = Some(Arc::new(
-            SurrealAnyEmployeePayrollConceptRepository::new(client),
+            SurrealAnyEmployeePayrollConceptRepository::new(client.clone()),
+        ));
+        self.payroll_history_repository = Some(Arc::new(SurrealAnyPayrollHistoryRepository::new(
+            client.clone(),
+        )));
+        self.payroll_history_detail_repository = Some(Arc::new(
+            SurrealAnyPayrollHistoryDetailRepository::new(client),
         ));
         self
     }
@@ -206,6 +228,22 @@ impl AppStateBuilder {
         self
     }
 
+    pub fn with_payroll_history_repository(
+        mut self,
+        repo: Arc<dyn PayrollHistoryRepository>,
+    ) -> Self {
+        self.payroll_history_repository = Some(repo);
+        self
+    }
+
+    pub fn with_payroll_history_detail_repository(
+        mut self,
+        repo: Arc<dyn PayrollHistoryDetailRepository>,
+    ) -> Self {
+        self.payroll_history_detail_repository = Some(repo);
+        self
+    }
+
     /// Build the `AppState`, wiring all services with their dependencies.
     ///
     /// # Panics
@@ -236,6 +274,12 @@ impl AppStateBuilder {
         let employee_payroll_concept_repository = self
             .employee_payroll_concept_repository
             .expect("employee_payroll_concept_repository is required");
+        let payroll_history_repository = self
+            .payroll_history_repository
+            .expect("payroll_history_repository is required");
+        let payroll_history_detail_repository = self
+            .payroll_history_detail_repository
+            .expect("payroll_history_detail_repository is required");
 
         // Build services in dependency order
         let organization_service = Arc::new(OrganizationService::new(organization_repository));
@@ -284,6 +328,21 @@ impl AppStateBuilder {
             Arc::clone(&payroll_concept_service),
         ));
 
+        let payroll_history_service = Arc::new(PayrollHistoryService::new(
+            payroll_history_repository,
+            Arc::clone(&payroll_service),
+        ));
+
+        let payroll_history_detail_service = Arc::new(PayrollHistoryDetailService::new(
+            payroll_history_detail_repository,
+            Arc::clone(&payroll_history_service),
+            Arc::clone(&employee_service),
+            Arc::clone(&division_service),
+            Arc::clone(&job_service),
+            Arc::clone(&bank_service),
+            Arc::clone(&payroll_concept_service),
+        ));
+
         AppState {
             organization_service,
             payroll_service,
@@ -294,6 +353,8 @@ impl AppStateBuilder {
             payroll_concept_definition_service,
             bank_service,
             employee_service,
+            payroll_history_service,
+            payroll_history_detail_service,
         }
     }
 }

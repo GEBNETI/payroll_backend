@@ -15,6 +15,8 @@ use nomina::{
         payroll::Payroll,
         payroll_concept::{NewPayrollConceptData, PayrollConcept},
         payroll_concept_definition::PayrollConceptDefinition,
+        payroll_history::{NewPayrollHistoryData, PayrollHistory},
+        payroll_history_detail::{NewPayrollHistoryDetailData, PayrollHistoryDetail},
     },
     error::AppResult,
     services::{
@@ -29,6 +31,8 @@ use nomina::{
             InsertPayrollConceptParams, PayrollConceptRepository, UpdatePayrollConceptParams,
         },
         payroll_concept_definition::PayrollConceptDefinitionRepository,
+        payroll_history::{PayrollHistoryRepository, UpdatePayrollHistoryParams},
+        payroll_history_detail::PayrollHistoryDetailRepository,
     },
 };
 
@@ -405,6 +409,16 @@ pub struct InMemoryPayrollConceptDefinitionRepository {
     store: RwLock<HashMap<Uuid, PayrollConceptDefinition>>,
 }
 
+#[derive(Default)]
+pub struct InMemoryPayrollHistoryRepository {
+    store: RwLock<HashMap<Uuid, PayrollHistory>>,
+}
+
+#[derive(Default)]
+pub struct InMemoryPayrollHistoryDetailRepository {
+    store: RwLock<HashMap<Uuid, PayrollHistoryDetail>>,
+}
+
 #[async_trait]
 impl EmployeeRepository for InMemoryEmployeeRepository {
     async fn insert(
@@ -428,6 +442,7 @@ impl EmployeeRepository for InMemoryEmployeeRepository {
         bank_account: String,
         status: String,
         hours: i32,
+        salary: f64,
         division_id: Uuid,
         payroll_id: Uuid,
     ) -> AppResult<Employee> {
@@ -451,6 +466,7 @@ impl EmployeeRepository for InMemoryEmployeeRepository {
             bank_account,
             status,
             hours,
+            salary,
             division_id,
             payroll_id,
         );
@@ -532,6 +548,9 @@ impl EmployeeRepository for InMemoryEmployeeRepository {
             }
             if let Some(hours) = updates.hours {
                 existing.hours = hours;
+            }
+            if let Some(salary) = updates.salary {
+                existing.salary = salary;
             }
 
             return Ok(Some(existing.clone()));
@@ -661,6 +680,104 @@ impl PayrollConceptDefinitionRepository for InMemoryPayrollConceptDefinitionRepo
         }
 
         Ok(None)
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[async_trait]
+impl PayrollHistoryRepository for InMemoryPayrollHistoryRepository {
+    async fn insert(&self, data: NewPayrollHistoryData) -> AppResult<PayrollHistory> {
+        let history = PayrollHistory::new(data);
+        self.store
+            .write()
+            .await
+            .insert(history.id, history.clone());
+        Ok(history)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollHistory>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<PayrollHistory>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|history| history.payroll_id == payroll_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn update(
+        &self,
+        id: Uuid,
+        params: UpdatePayrollHistoryParams,
+    ) -> AppResult<Option<PayrollHistory>> {
+        let mut guard = self.store.write().await;
+        if let Some(existing) = guard.get_mut(&id) {
+            if let Some(title) = params.title {
+                existing.title = title;
+            }
+            if let Some(period) = params.period {
+                existing.period = period;
+            }
+            if let Some(start_date) = params.start_date {
+                existing.start_date = start_date;
+            }
+            if let Some(end_date) = params.end_date {
+                existing.end_date = end_date;
+            }
+            if let Some(status) = params.status {
+                existing.status = status;
+            }
+            if let Some(total_employees) = params.total_employees {
+                existing.total_employees = total_employees;
+            }
+            if let Some(total_earnings) = params.total_earnings {
+                existing.total_earnings = total_earnings;
+            }
+            if let Some(total_deductions) = params.total_deductions {
+                existing.total_deductions = total_deductions;
+            }
+            return Ok(Some(existing.clone()));
+        }
+        Ok(None)
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[async_trait]
+impl PayrollHistoryDetailRepository for InMemoryPayrollHistoryDetailRepository {
+    async fn insert(&self, data: NewPayrollHistoryDetailData) -> AppResult<PayrollHistoryDetail> {
+        let detail = PayrollHistoryDetail::new(data);
+        self.store.write().await.insert(detail.id, detail.clone());
+        Ok(detail)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollHistoryDetail>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_payroll_history(
+        &self,
+        payroll_history_id: Uuid,
+    ) -> AppResult<Vec<PayrollHistoryDetail>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|detail| detail.payroll_history_id == payroll_history_id)
+            .cloned()
+            .collect())
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {

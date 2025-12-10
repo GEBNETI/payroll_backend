@@ -177,7 +177,8 @@ async fn create_employee(
                         "bank_id": bank_id,
                         "bank_account": "000111222",
                         "status": "active",
-                        "hours": 40
+                        "hours": 40,
+                        "salary": 60000.0
                     })
                     .to_string(),
                 ))

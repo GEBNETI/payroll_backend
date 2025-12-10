@@ -171,7 +171,8 @@ async fn can_create_and_list_employees() {
                     "bank_id": bank_id,
                     "bank_account": "ACC123",
                     "status": "Active",
-                    "hours": 40
+                    "hours": 40,
+                    "salary": 55000.0
                 }).to_string()))
                 .expect("request"),
         )
@@ -238,7 +239,8 @@ async fn rejects_invalid_references_and_dates() {
                     "bank_id": bank_other_org,
                     "bank_account": "ACC000",
                     "status": "Active",
-                    "hours": 10
+                    "hours": 10,
+                    "salary": 35000.0
                 }).to_string()))
                 .expect("request"),
         )
@@ -273,7 +275,8 @@ async fn rejects_invalid_references_and_dates() {
                     "bank_id": bank_valid,
                     "bank_account": "ACC999",
                     "status": "Inactive",
-                    "hours": 20
+                    "hours": 20,
+                    "salary": 45000.0
                 }).to_string()))
                 .expect("request"),
         )
@@ -316,7 +319,8 @@ async fn can_update_and_delete_employee() {
                     "bank_id": bank_id,
                     "bank_account": "ACCT-456",
                     "status": "Active",
-                    "hours": 25
+                    "hours": 25,
+                    "salary": 42000.0
                 }).to_string()))
                 .expect("request"),
         )
