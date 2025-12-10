@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, ToSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, ToSchema)]
 pub struct Employee {
     pub id: Uuid,
     pub id_number: String,
@@ -27,6 +27,7 @@ pub struct Employee {
     pub bank_account: String,
     pub status: String,
     pub hours: i32,
+    pub salary: f64,
     pub division_id: Uuid,
     pub payroll_id: Uuid,
 }
@@ -54,6 +55,7 @@ impl Employee {
         bank_account: impl Into<String>,
         status: impl Into<String>,
         hours: i32,
+        salary: f64,
         division_id: Uuid,
         payroll_id: Uuid,
     ) -> Self {
@@ -77,6 +79,7 @@ impl Employee {
             bank_account: bank_account.into(),
             status: status.into(),
             hours,
+            salary,
             division_id,
             payroll_id,
         }
