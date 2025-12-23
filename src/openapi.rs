@@ -58,6 +58,9 @@ use utoipa::OpenApi;
         crate::handlers::payroll_history_detail::list,
         crate::handlers::payroll_history_detail::get,
         crate::handlers::payroll_history_detail::delete,
+        crate::handlers::payroll_calculator::calculate,
+        crate::handlers::payroll_calculator::clean,
+        crate::handlers::payroll_calculator::recalculate,
     ),
     components(
         schemas(
@@ -109,6 +112,8 @@ use utoipa::OpenApi;
             crate::handlers::payroll_history::PayrollHistoryResponse,
             crate::handlers::payroll_history_detail::CreatePayrollHistoryDetailRequest,
             crate::handlers::payroll_history_detail::PayrollHistoryDetailResponse,
+            crate::handlers::payroll_calculator::CalculationResponse,
+            crate::handlers::payroll_calculator::CleanResponse,
         )
     ),
     tags(
@@ -123,6 +128,7 @@ use utoipa::OpenApi;
         (name = "Employee Payroll Concepts", description = "Employee-specific payroll concept assignments"),
         (name = "Payroll History", description = "Payroll history tracking"),
         (name = "Payroll History Details", description = "Payroll history detail records"),
+        (name = "Payroll Calculator", description = "Payroll calculation and recalculation operations"),
     )
 )]
 pub struct ApiDoc;

@@ -6,10 +6,10 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 ## Application Architecture
 - `src/main.rs` bootstraps configuration, networking, and delegates to `server::run`.
 - `src/lib.rs` exposes high-level modules: `server`, `routes`, `handlers`, `domain`, `services`, `infrastructure`, `middleware`, `extractors`, `openapi`, and `error`.
-- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` wires the Organization, Payroll, Division, Job, Bank, Employee, PayrollConcept, PayrollConceptDefinition, and EmployeePayrollConcept services so handlers can enforce cross-entity invariants.
+- `src/server.rs` owns router construction (`server::router`) and the Axum/Tokio serving loop (`server::run`). The shared `AppState` wires the Organization, Payroll, Division, Job, Bank, Employee, PayrollConcept, PayrollConceptDefinition, EmployeePayrollConcept, PayrollHistory, and PayrollHistoryDetail services so handlers can enforce cross-entity invariants.
 - `src/routes/` defines small, composable routers per feature (e.g., `routes::health`) that only wire HTTP paths.
 - `src/handlers/` contains request/response logic (`handlers::health::check`) and converts domain data into transport-friendly payloads.
-- `src/domain/` hosts pure business types and helpers (`domain::health::Health`) with no Axum dependencies.
+- `src/domain/` hosts pure business types and helpers (`domain::health::Health`, `domain::payroll_history::PayrollHistory`, `domain::payroll_history_detail::PayrollHistoryDetail`) with no Axum dependencies.
 - `src/services/`, `src/infrastructure/`, `src/middleware/`, `src/extractors/`, and `src/error.rs` are reserved for orchestration, adapters, tower layers, custom extractors, and shared error mappers respectively as features grow.
 
 ### REST resources (current)
@@ -23,6 +23,8 @@ Rust sources live under `src/`, with `src/main.rs` serving as the entry point. K
 - `/organizations/{organization_id}/payrolls/{payroll_id}/concepts` — CRUD for payroll concepts (`code`, `name`, `type`, `scope`).
 - `/organizations/{organization_id}/payrolls/{payroll_id}/concepts/{concept_id}/definition` — Manage the formula/condition that calculates a global payroll concept.
 - `/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees/{employee_id}/concepts` — Manage employee-specific payroll concept assignments (individual scope concepts with custom amounts).
+- `/organizations/{organization_id}/payrolls/{payroll_id}/history` — CRUD for payroll history entries (status tracking per payroll run).
+- `/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/details` — Create/list/get/delete payroll history detail rows tied to a payroll history entry.
 
 ## Build, Test, and Development Commands
 - `cargo check` — fast validation of the codebase before committing.

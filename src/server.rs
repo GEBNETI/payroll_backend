@@ -31,6 +31,7 @@ use crate::{
         job::{JobRepository, JobService},
         organization::{OrganizationRepository, OrganizationService},
         payroll::{PayrollRepository, PayrollService},
+        payroll_calculator::PayrollCalculatorService,
         payroll_concept::{PayrollConceptRepository, PayrollConceptService},
         payroll_concept_definition::{
             PayrollConceptDefinitionRepository, PayrollConceptDefinitionService,
@@ -66,6 +67,7 @@ pub struct AppState {
     employee_service: Arc<EmployeeService>,
     payroll_history_service: Arc<PayrollHistoryService>,
     payroll_history_detail_service: Arc<PayrollHistoryDetailService>,
+    payroll_calculator_service: Arc<PayrollCalculatorService>,
 }
 
 impl AppState {
@@ -115,6 +117,10 @@ impl AppState {
 
     pub fn payroll_history_detail_service(&self) -> Arc<PayrollHistoryDetailService> {
         Arc::clone(&self.payroll_history_detail_service)
+    }
+
+    pub fn payroll_calculator_service(&self) -> Arc<PayrollCalculatorService> {
+        Arc::clone(&self.payroll_calculator_service)
     }
 
     pub async fn initialize() -> Result<Self, ServerSetupError> {
@@ -344,6 +350,17 @@ impl AppStateBuilder {
             Arc::clone(&payroll_concept_service),
         ));
 
+        let payroll_calculator_service = Arc::new(PayrollCalculatorService::new(
+            Arc::clone(&payroll_history_service),
+            Arc::clone(&payroll_history_detail_service),
+            Arc::clone(&division_service),
+            Arc::clone(&employee_service),
+            Arc::clone(&employee_payroll_concept_service),
+            Arc::clone(&payroll_concept_service),
+            Arc::clone(&payroll_concept_definition_service),
+            Arc::clone(&job_service),
+        ));
+
         AppState {
             organization_service,
             payroll_service,
@@ -356,6 +373,7 @@ impl AppStateBuilder {
             employee_service,
             payroll_history_service,
             payroll_history_detail_service,
+            payroll_calculator_service,
         }
     }
 }

@@ -16,6 +16,7 @@ surrealdb = { package = "surrealdb-beta", version = "2.0.2", default-features = 
     "http",
 ] }
 chrono = { version = "0.4", features = ["serde"] }
+evalexpr = "11"
 thiserror = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1", features = ["serde", "v4"] }
@@ -23,7 +24,7 @@ utoipa = { version = "5", features = ["axum_extras", "uuid"] }
 utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-tower-http = { version = "0.6", features = ["trace"] }
+tower-http = { version = "0.6", features = ["trace", "cors"] }
 
 [dev-dependencies]
 http-body-util = "0.1"
