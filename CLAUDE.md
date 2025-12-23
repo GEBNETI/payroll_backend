@@ -35,7 +35,7 @@ domain → services → handlers → routes
 
 ### Layer Responsibilities
 
-- **domain/** - Pure business types with no framework dependencies. Contains: Organization, Payroll, Division, Job, Bank, Employee, PayrollConcept, PayrollConceptDefinition, EmployeePayrollConcept
+- **domain/** - Pure business types with no framework dependencies. Contains: Organization, Payroll, Division, Job, Bank, Employee, PayrollConcept, PayrollConceptDefinition, EmployeePayrollConcept, PayrollHistory, PayrollHistoryDetail
 - **services/** - Business logic, validation, and orchestration. Each service owns a repository trait and validates cross-entity invariants
 - **handlers/** - HTTP request/response logic, converts domain data to transport payloads
 - **routes/** - Composable routers per feature that wire HTTP paths

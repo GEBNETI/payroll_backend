@@ -14,6 +14,7 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 - Payroll concept catalog for earnings/deductions, including scope tracking.
 - Global concept definitions that capture the formula and optional condition for each global concept.
 - Employee-specific concept assignments with per-assignment amounts for individual concepts.
+- Payroll history tracking for payroll run status and detailed calculations per employee.
 - SurrealDB repository implementations plus in-memory doubles for integration tests.
 
 ## HTTP Endpoints
@@ -65,6 +66,15 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id/concepts/:assignment_id` | Fetch employee concept assignment |
 | PUT    | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id/concepts/:assignment_id` | Update assignment amount |
 | DELETE | `/organizations/:organization_id/payrolls/:payroll_id/divisions/:division_id/employees/:employee_id/concepts/:assignment_id` | Remove assignment |
+| POST   | `/organizations/:organization_id/payrolls/:payroll_id/history` | Create payroll history entry |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/history` | List payroll history for a payroll |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id` | Fetch payroll history entry |
+| PUT    | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id` | Update payroll history entry |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id` | Delete payroll history entry |
+| POST   | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/details` | Create payroll history detail |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/details` | List details for a payroll history entry |
+| GET    | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/details/:detail_id` | Fetch payroll history detail |
+| DELETE | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/details/:detail_id` | Delete payroll history detail |
 
 ## API Documentation
 
