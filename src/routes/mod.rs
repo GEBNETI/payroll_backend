@@ -14,6 +14,7 @@ pub mod health;
 pub mod job;
 pub mod organization;
 pub mod payroll;
+pub mod payroll_calculator;
 pub mod payroll_concept;
 pub mod payroll_concept_definition;
 pub mod payroll_history;
@@ -35,6 +36,7 @@ pub fn app_router(state: AppState) -> Router {
         .merge(employee::router())
         .merge(payroll_history::router())
         .merge(payroll_history_detail::router())
+        .merge(payroll_calculator::router())
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi))
         .layer(
             TraceLayer::new_for_http()

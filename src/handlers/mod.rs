@@ -6,6 +6,7 @@ pub mod health;
 pub mod job;
 pub mod organization;
 pub mod payroll;
+pub mod payroll_calculator;
 pub mod payroll_concept;
 pub mod payroll_concept_definition;
 pub mod payroll_history;
