@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
+use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
@@ -106,9 +106,9 @@ where
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, SurrealValue)]
 struct PayrollHistoryRecord {
-    id: Thing,
+    id: RecordId,
     title: String,
     period: String,
     start_date: String,
@@ -125,7 +125,7 @@ struct PayrollHistoryRecord {
 }
 
 fn record_to_domain(record: PayrollHistoryRecord) -> AppResult<PayrollHistory> {
-    let id = parse_thing_id(&record.id.id, "stored payroll history id")?;
+    let id = parse_thing_id(&record.id.key, "stored payroll history id")?;
     let organization_id = parse_uuid_field(
         &record.organization_id,
         "stored payroll history organization_id",

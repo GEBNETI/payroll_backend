@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
+use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
@@ -101,30 +101,33 @@ where
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, SurrealValue)]
 struct PayrollConceptRecord {
-    id: Thing,
+    id: RecordId,
     code: String,
     name: String,
     #[serde(rename = "type")]
-    concept_type: PayrollConceptType,
-    scope: PayrollConceptScope,
-    period: PayrollConceptPeriod,
+    concept_type: String,
+    scope: String,
+    period: String,
     active: bool,
     payroll_id: String,
 }
 
 fn record_to_domain(record: PayrollConceptRecord) -> AppResult<PayrollConcept> {
-    let id = parse_thing_id(&record.id.id, "stored payroll concept id")?;
+    let id = parse_thing_id(&record.id.key, "stored payroll concept id")?;
     let payroll_id = parse_uuid_field(&record.payroll_id, "stored payroll concept payroll_id")?;
+    let concept_type = parse_concept_type(&record.concept_type)?;
+    let scope = parse_concept_scope(&record.scope)?;
+    let period = parse_concept_period(&record.period)?;
 
     Ok(PayrollConcept::new(NewPayrollConceptData {
         id,
         code: record.code,
         name: record.name,
-        concept_type: record.concept_type,
-        scope: record.scope,
-        period: record.period,
+        concept_type,
+        scope,
+        period,
         active: record.active,
         payroll_id,
     }))
@@ -173,6 +176,32 @@ fn build_update_payload(params: UpdatePayrollConceptParams) -> AppResult<JsonVal
     }
 
     Ok(JsonValue::Object(object))
+}
+
+fn parse_concept_type(value: &str) -> AppResult<PayrollConceptType> {
+    match value {
+        "earning" => Ok(PayrollConceptType::Earning),
+        "deduction" => Ok(PayrollConceptType::Deduction),
+        _ => Err(AppError::internal(format!("unknown payroll concept type: {value}"))),
+    }
+}
+
+fn parse_concept_scope(value: &str) -> AppResult<PayrollConceptScope> {
+    match value {
+        "global" => Ok(PayrollConceptScope::Global),
+        "individual" => Ok(PayrollConceptScope::Individual),
+        _ => Err(AppError::internal(format!("unknown payroll concept scope: {value}"))),
+    }
+}
+
+fn parse_concept_period(value: &str) -> AppResult<PayrollConceptPeriod> {
+    match value {
+        "1" => Ok(PayrollConceptPeriod::One),
+        "2" => Ok(PayrollConceptPeriod::Two),
+        "both" => Ok(PayrollConceptPeriod::Both),
+        "special" => Ok(PayrollConceptPeriod::Special),
+        _ => Err(AppError::internal(format!("unknown payroll concept period: {value}"))),
+    }
 }
 
 pub type SurrealAnyPayrollConceptRepository = SurrealPayrollConceptRepository<Any>;

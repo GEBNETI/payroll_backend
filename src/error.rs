@@ -72,12 +72,12 @@ impl From<uuid::Error> for AppError {
 ///
 /// SurrealDB can store record IDs as either strings or native UUIDs,
 /// so this handles both formats.
-pub fn parse_thing_id(id: &surrealdb::sql::Id, context: &str) -> AppResult<Uuid> {
-    use surrealdb::sql::Id;
+pub fn parse_thing_id(id: &surrealdb::types::RecordIdKey, context: &str) -> AppResult<Uuid> {
+    use surrealdb::types::RecordIdKey;
     match id {
-        Id::String(value) => Uuid::parse_str(value)
+        RecordIdKey::String(value) => Uuid::parse_str(value)
             .map_err(|_| AppError::internal(format!("{context} is not a valid UUID"))),
-        Id::Uuid(value) => Ok(Uuid::from(*value)),
+        RecordIdKey::Uuid(value) => Ok(value.clone().into_inner()),
         _ => Err(AppError::internal(format!(
             "{context} is not a supported format"
         ))),

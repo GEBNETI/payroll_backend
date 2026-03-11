@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
+use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
@@ -94,16 +94,16 @@ where
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, SurrealValue)]
 struct Record {
-    id: Thing,
+    id: RecordId,
     payroll_concept_id: String,
     formula: String,
     condition: String,
 }
 
 fn record_to_domain(record: Record) -> AppResult<PayrollConceptDefinition> {
-    let id = parse_thing_id(&record.id.id, "stored payroll concept definition id")?;
+    let id = parse_thing_id(&record.id.key, "stored payroll concept definition id")?;
     let payroll_concept_id = parse_uuid_field(
         &record.payroll_concept_id,
         "stored payroll concept definition payroll_concept_id",

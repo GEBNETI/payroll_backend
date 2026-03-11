@@ -43,8 +43,8 @@ pub async fn connect(config: &SurrealConfig) -> Result<Surreal<Any>, surrealdb::
 
     client
         .signin(Root {
-            username: &config.username,
-            password: &config.password,
+            username: config.username.clone(),
+            password: config.password.clone(),
         })
         .await?;
 

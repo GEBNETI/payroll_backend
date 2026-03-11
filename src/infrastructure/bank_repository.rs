@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, sql::Thing, Connection, Surreal};
+use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
 use uuid::Uuid;
 
 use crate::{
@@ -80,15 +80,15 @@ where
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, SurrealValue)]
 struct BankRecord {
-    id: Thing,
+    id: RecordId,
     name: String,
     organization_id: String,
 }
 
 fn record_to_domain(record: BankRecord) -> AppResult<Bank> {
-    let id = parse_thing_id(&record.id.id, "stored bank id")?;
+    let id = parse_thing_id(&record.id.key, "stored bank id")?;
     let organization_id = parse_uuid_field(&record.organization_id, "stored bank organization_id")?;
 
     Ok(Bank::new(id, record.name, organization_id))
