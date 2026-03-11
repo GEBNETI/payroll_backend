@@ -1,0 +1,6 @@
+[env]
+SURREALDB_URL = "http://localhost:8000"
+SURREALDB_USERNAME = "root"
+SURREALDB_PASSWORD = "root"
+SURREALDB_NAMESPACE = "development"
+SURREALDB_DATABASE = "nomina"

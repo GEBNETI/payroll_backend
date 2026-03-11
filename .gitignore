@@ -1,4 +1,9 @@
 /target
 
 .envrc
+.tool-versions
 /.vscode
+
+docker/
+.claude/
+
