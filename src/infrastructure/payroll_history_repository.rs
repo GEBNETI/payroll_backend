@@ -10,7 +10,7 @@ use crate::{
     services::payroll_history::{PayrollHistoryRepository, UpdatePayrollHistoryParams},
 };
 
-const PAYROLL_HISTORY_TABLE: &str = "payroll_history";
+const TABLE: &str = "payroll_history";
 
 #[derive(Clone)]
 pub struct SurrealPayrollHistoryRepository<C>
@@ -35,18 +35,19 @@ where
     C: Connection + Clone + Send + Sync + 'static,
 {
     async fn insert(&self, data: NewPayrollHistoryData) -> AppResult<PayrollHistory> {
-        let record: Option<PayrollHistoryRecord> = self
+        let id = data.id;
+        let _: Option<JsonValue> = self
             .client
-            .create((PAYROLL_HISTORY_TABLE, data.id.to_string()))
+            .create((TABLE, id.to_string()))
             .content(json!({
                 "title": data.title,
                 "period": data.period,
                 "start_date": data.start_date.to_string(),
                 "end_date": data.end_date.to_string(),
                 "created_at": data.created_at.to_rfc3339(),
-                "organization_id": data.organization_id,
+                "organization_id": data.organization_id.to_string(),
                 "organization_name": data.organization_name,
-                "payroll_id": data.payroll_id,
+                "payroll_id": data.payroll_id.to_string(),
                 "payroll_name": data.payroll_name,
                 "status": status_to_string(&data.status),
                 "total_employees": data.total_employees,
@@ -55,30 +56,40 @@ where
             }))
             .await?;
 
-        record
-            .map(record_to_domain)
-            .transpose()?
+        self.fetch(id)
+            .await?
             .ok_or_else(|| AppError::internal("database did not return created payroll history"))
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollHistory>> {
-        let record: Option<PayrollHistoryRecord> = self
+        let rid = RecordId::new(TABLE, id.to_string());
+        let mut response = self
             .client
-            .select((PAYROLL_HISTORY_TABLE, id.to_string()))
+            .query("SELECT * FROM payroll_history WHERE id = $rid")
+            .bind(("rid", rid))
             .await?;
 
-        record.map(record_to_domain).transpose()
+        let result: Result<Option<PayrollHistoryRecord>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<PayrollHistory>> {
-        let mut result = self
+        let mut response = self
             .client
-            .query("SELECT * FROM type::table($table) WHERE payroll_id = $payroll_id")
-            .bind(("table", PAYROLL_HISTORY_TABLE))
+            .query("SELECT * FROM payroll_history WHERE payroll_id = $payroll_id")
             .bind(("payroll_id", payroll_id.to_string()))
             .await?;
-        let records: Vec<PayrollHistoryRecord> = result.take(0)?;
-        records.into_iter().map(record_to_domain).collect()
+
+        let result: Result<Vec<PayrollHistoryRecord>, _> = response.take(0);
+        match result {
+            Ok(records) => records.into_iter().map(record_to_domain).collect(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(vec![]),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn update(
@@ -87,19 +98,20 @@ where
         params: UpdatePayrollHistoryParams,
     ) -> AppResult<Option<PayrollHistory>> {
         let payload = build_update_payload(params)?;
-        let record: Option<PayrollHistoryRecord> = self
+
+        let _: Option<JsonValue> = self
             .client
-            .update((PAYROLL_HISTORY_TABLE, id.to_string()))
+            .update((TABLE, id.to_string()))
             .merge(payload)
             .await?;
 
-        record.map(record_to_domain).transpose()
+        self.fetch(id).await
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<PayrollHistoryRecord> = self
+        let record: Option<JsonValue> = self
             .client
-            .delete((PAYROLL_HISTORY_TABLE, id.to_string()))
+            .delete((TABLE, id.to_string()))
             .await?;
 
         Ok(record.is_some())
@@ -190,51 +202,26 @@ fn build_update_payload(params: UpdatePayrollHistoryParams) -> AppResult<JsonVal
     if let Some(title) = params.title {
         object.insert("title".to_string(), JsonValue::String(title));
     }
-
     if let Some(period) = params.period {
         object.insert("period".to_string(), JsonValue::String(period));
     }
-
     if let Some(start_date) = params.start_date {
-        object.insert(
-            "start_date".to_string(),
-            JsonValue::String(start_date.to_string()),
-        );
+        object.insert("start_date".to_string(), JsonValue::String(start_date.to_string()));
     }
-
     if let Some(end_date) = params.end_date {
-        object.insert(
-            "end_date".to_string(),
-            JsonValue::String(end_date.to_string()),
-        );
+        object.insert("end_date".to_string(), JsonValue::String(end_date.to_string()));
     }
-
     if let Some(status) = params.status {
-        object.insert(
-            "status".to_string(),
-            JsonValue::String(status_to_string(&status).to_string()),
-        );
+        object.insert("status".to_string(), JsonValue::String(status_to_string(&status).to_string()));
     }
-
     if let Some(total_employees) = params.total_employees {
-        object.insert(
-            "total_employees".to_string(),
-            JsonValue::from(total_employees),
-        );
+        object.insert("total_employees".to_string(), JsonValue::from(total_employees));
     }
-
     if let Some(total_earnings) = params.total_earnings {
-        object.insert(
-            "total_earnings".to_string(),
-            JsonValue::from(total_earnings),
-        );
+        object.insert("total_earnings".to_string(), JsonValue::from(total_earnings));
     }
-
     if let Some(total_deductions) = params.total_deductions {
-        object.insert(
-            "total_deductions".to_string(),
-            JsonValue::from(total_deductions),
-        );
+        object.insert("total_deductions".to_string(), JsonValue::from(total_deductions));
     }
 
     if object.is_empty() {

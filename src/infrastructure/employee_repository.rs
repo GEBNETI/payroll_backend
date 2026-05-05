@@ -12,6 +12,14 @@ use crate::{
 
 const EMPLOYEE_TABLE: &str = "employee";
 
+// `??` coalesces null/NONE → NONE so SurrealValue deserialization of Option<String> succeeds.
+const SELECT_EMPLOYEE_FIELDS: &str =
+    "SELECT id, id_number, last_name, first_name, address, phone, place_of_birth, \
+     date_of_birth, nationality, marital_status, gender, hire_date, \
+     termination_date ?? NONE AS termination_date, \
+     clasification, job_id, bank_id, bank_account, status, hours, salary, \
+     division_id, payroll_id";
+
 #[derive(Clone)]
 pub struct SurrealEmployeeRepository<C>
 where
@@ -60,70 +68,87 @@ where
         division_id: Uuid,
         payroll_id: Uuid,
     ) -> AppResult<Employee> {
-        let record: Option<EmployeeRecord> = self
+        let mut payload = Map::new();
+        payload.insert("id_number".to_string(), json!(id_number));
+        payload.insert("last_name".to_string(), json!(last_name));
+        payload.insert("first_name".to_string(), json!(first_name));
+        payload.insert("address".to_string(), json!(address));
+        payload.insert("phone".to_string(), json!(phone));
+        payload.insert("place_of_birth".to_string(), json!(place_of_birth));
+        payload.insert("date_of_birth".to_string(), json!(date_of_birth.to_string()));
+        payload.insert("nationality".to_string(), json!(nationality));
+        payload.insert("marital_status".to_string(), json!(marital_status));
+        payload.insert("gender".to_string(), json!(gender));
+        payload.insert("hire_date".to_string(), json!(hire_date.to_string()));
+        if let Some(date) = termination_date {
+            payload.insert("termination_date".to_string(), json!(date.to_string()));
+        }
+        payload.insert("clasification".to_string(), json!(clasification));
+        payload.insert("job_id".to_string(), json!(job_id.to_string()));
+        payload.insert("bank_id".to_string(), json!(bank_id.to_string()));
+        payload.insert("bank_account".to_string(), json!(bank_account));
+        payload.insert("status".to_string(), json!(status));
+        payload.insert("hours".to_string(), json!(hours));
+        payload.insert("salary".to_string(), json!(salary));
+        payload.insert("division_id".to_string(), json!(division_id.to_string()));
+        payload.insert("payroll_id".to_string(), json!(payroll_id.to_string()));
+
+        let _: Option<JsonValue> = self
             .client
             .create((EMPLOYEE_TABLE, id.to_string()))
-            .content(json!({
-                "id_number": id_number,
-                "last_name": last_name,
-                "first_name": first_name,
-                "address": address,
-                "phone": phone,
-                "place_of_birth": place_of_birth,
-                "date_of_birth": date_of_birth.to_string(),
-                "nationality": nationality,
-                "marital_status": marital_status,
-                "gender": gender,
-                "hire_date": hire_date.to_string(),
-                "termination_date": termination_date.map(|date| date.to_string()),
-                "clasification": clasification,
-                "job_id": job_id,
-                "bank_id": bank_id,
-                "bank_account": bank_account,
-                "status": status,
-                "hours": hours,
-                "salary": salary,
-                "division_id": division_id,
-                "payroll_id": payroll_id,
-            }))
+            .content(JsonValue::Object(payload))
             .await?;
 
-        record
-            .map(record_to_domain)
-            .transpose()?
+        self.fetch(id)
+            .await?
             .ok_or_else(|| AppError::internal("database did not return created employee"))
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<Employee>> {
-        let record: Option<EmployeeRecord> =
-            self.client.select((EMPLOYEE_TABLE, id.to_string())).await?;
+        let rid = RecordId::new(EMPLOYEE_TABLE, id.to_string());
+        let mut response = self
+            .client
+            .query(format!(
+                "{SELECT_EMPLOYEE_FIELDS} FROM employee WHERE id = $rid"
+            ))
+            .bind(("rid", rid))
+            .await?;
 
+        let record: Option<EmployeeRecord> = response.take(0)?;
         record.map(record_to_domain).transpose()
     }
 
     async fn fetch_by_division(&self, division_id: Uuid) -> AppResult<Vec<Employee>> {
-        let records: Vec<EmployeeRecord> = self.client.select(EMPLOYEE_TABLE).await?;
-        records
-            .into_iter()
-            .filter(|record| record.division_id == division_id.to_string())
-            .map(record_to_domain)
-            .collect()
+        let mut response = self
+            .client
+            .query(format!(
+                "{SELECT_EMPLOYEE_FIELDS} FROM employee WHERE division_id = $division_id"
+            ))
+            .bind(("division_id", division_id.to_string()))
+            .await?;
+
+        let records: Vec<EmployeeRecord> = response.take(0)?;
+        records.into_iter().map(record_to_domain).collect()
     }
 
     async fn update(&self, id: Uuid, updates: UpdateEmployeeParams) -> AppResult<Option<Employee>> {
         let payload = build_update_payload(updates)?;
-        let record: Option<EmployeeRecord> = self
+
+        let _: Option<JsonValue> = self
             .client
             .update((EMPLOYEE_TABLE, id.to_string()))
             .merge(payload)
             .await?;
 
-        record.map(record_to_domain).transpose()
+        self.fetch(id).await
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<EmployeeRecord> =
-            self.client.delete((EMPLOYEE_TABLE, id.to_string())).await?;
+        let record: Option<JsonValue> = self
+            .client
+            .delete((EMPLOYEE_TABLE, id.to_string()))
+            .await?;
+
         Ok(record.is_some())
     }
 }
@@ -205,103 +230,64 @@ fn build_update_payload(updates: UpdateEmployeeParams) -> AppResult<JsonValue> {
     if let Some(id_number) = updates.id_number {
         object.insert("id_number".to_string(), JsonValue::String(id_number));
     }
-
     if let Some(last_name) = updates.last_name {
         object.insert("last_name".to_string(), JsonValue::String(last_name));
     }
-
     if let Some(first_name) = updates.first_name {
         object.insert("first_name".to_string(), JsonValue::String(first_name));
     }
-
     if let Some(address) = updates.address {
         object.insert("address".to_string(), JsonValue::String(address));
     }
-
     if let Some(phone) = updates.phone {
         object.insert("phone".to_string(), JsonValue::String(phone));
     }
-
     if let Some(place_of_birth) = updates.place_of_birth {
-        object.insert(
-            "place_of_birth".to_string(),
-            JsonValue::String(place_of_birth),
-        );
+        object.insert("place_of_birth".to_string(), JsonValue::String(place_of_birth));
     }
-
     if let Some(date_of_birth) = updates.date_of_birth {
-        object.insert(
-            "date_of_birth".to_string(),
-            JsonValue::String(date_of_birth.to_string()),
-        );
+        object.insert("date_of_birth".to_string(), JsonValue::String(date_of_birth.to_string()));
     }
-
     if let Some(nationality) = updates.nationality {
         object.insert("nationality".to_string(), JsonValue::String(nationality));
     }
-
     if let Some(marital_status) = updates.marital_status {
-        object.insert(
-            "marital_status".to_string(),
-            JsonValue::String(marital_status),
-        );
+        object.insert("marital_status".to_string(), JsonValue::String(marital_status));
     }
-
     if let Some(gender) = updates.gender {
         object.insert("gender".to_string(), JsonValue::String(gender));
     }
-
     if let Some(hire_date) = updates.hire_date {
-        object.insert(
-            "hire_date".to_string(),
-            JsonValue::String(hire_date.to_string()),
-        );
+        object.insert("hire_date".to_string(), JsonValue::String(hire_date.to_string()));
     }
-
     if let Some(termination_date) = updates.termination_date {
         match termination_date {
             Some(value) => {
-                object.insert(
-                    "termination_date".to_string(),
-                    JsonValue::String(value.to_string()),
-                );
+                object.insert("termination_date".to_string(), JsonValue::String(value.to_string()));
             }
             None => {
                 object.insert("termination_date".to_string(), JsonValue::Null);
             }
         }
     }
-
     if let Some(clasification) = updates.clasification {
-        object.insert(
-            "clasification".to_string(),
-            JsonValue::String(clasification),
-        );
+        object.insert("clasification".to_string(), JsonValue::String(clasification));
     }
-
     if let Some(job_id) = updates.job_id {
         object.insert("job_id".to_string(), JsonValue::String(job_id.to_string()));
     }
-
     if let Some(bank_id) = updates.bank_id {
-        object.insert(
-            "bank_id".to_string(),
-            JsonValue::String(bank_id.to_string()),
-        );
+        object.insert("bank_id".to_string(), JsonValue::String(bank_id.to_string()));
     }
-
     if let Some(bank_account) = updates.bank_account {
         object.insert("bank_account".to_string(), JsonValue::String(bank_account));
     }
-
     if let Some(status) = updates.status {
         object.insert("status".to_string(), JsonValue::String(status));
     }
-
     if let Some(hours) = updates.hours {
         object.insert("hours".to_string(), JsonValue::from(hours));
     }
-
     if let Some(salary) = updates.salary {
         object.insert("salary".to_string(), JsonValue::from(salary));
     }

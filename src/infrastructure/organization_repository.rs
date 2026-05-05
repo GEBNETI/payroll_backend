@@ -34,46 +34,61 @@ where
     C: Connection + Clone + Send + Sync + 'static,
 {
     async fn insert(&self, id: Uuid, name: String) -> AppResult<Organization> {
-        let record: Option<OrganizationRecord> = self
+        let _: Option<JsonValue> = self
             .client
             .create((ORGANIZATION_TABLE, id.to_string()))
             .content(json!({"name": name}))
             .await?;
 
-        record
-            .map(record_to_domain)
-            .transpose()?
+        self.fetch(id)
+            .await?
             .ok_or_else(|| AppError::internal("database did not return created organization"))
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<Organization>> {
-        let record: Option<OrganizationRecord> = self
+        let rid = RecordId::new(ORGANIZATION_TABLE, id.to_string());
+        let mut response = self
             .client
-            .select((ORGANIZATION_TABLE, id.to_string()))
+            .query("SELECT * FROM organization WHERE id = $rid")
+            .bind(("rid", rid))
             .await?;
 
-        record.map(record_to_domain).transpose()
+        let result: Result<Option<OrganizationRecord>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn fetch_all(&self) -> AppResult<Vec<Organization>> {
-        let records: Vec<OrganizationRecord> = self.client.select(ORGANIZATION_TABLE).await?;
-        records.into_iter().map(record_to_domain).collect()
+        let mut response = self
+            .client
+            .query("SELECT * FROM organization")
+            .await?;
+
+        let result: Result<Vec<OrganizationRecord>, _> = response.take(0);
+        match result {
+            Ok(records) => records.into_iter().map(record_to_domain).collect(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(vec![]),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn update(&self, id: Uuid, name: Option<String>) -> AppResult<Option<Organization>> {
         let payload = build_update_payload(name)?;
 
-        let record: Option<OrganizationRecord> = self
+        let _: Option<JsonValue> = self
             .client
             .update((ORGANIZATION_TABLE, id.to_string()))
             .merge(payload)
             .await?;
 
-        record.map(record_to_domain).transpose()
+        self.fetch(id).await
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<OrganizationRecord> = self
+        let record: Option<JsonValue> = self
             .client
             .delete((ORGANIZATION_TABLE, id.to_string()))
             .await?;
@@ -93,8 +108,6 @@ fn record_to_domain(record: OrganizationRecord) -> AppResult<Organization> {
     Ok(Organization::new(id, record.name))
 }
 
-pub type SurrealAnyOrganizationRepository = SurrealOrganizationRepository<Any>;
-
 fn build_update_payload(name: Option<String>) -> AppResult<JsonValue> {
     let mut object = Map::new();
 
@@ -110,3 +123,5 @@ fn build_update_payload(name: Option<String>) -> AppResult<JsonValue> {
 
     Ok(JsonValue::Object(object))
 }
+
+pub type SurrealAnyOrganizationRepository = SurrealOrganizationRepository<Any>;

@@ -9,7 +9,7 @@ use crate::{
     services::payroll_concept_definition::PayrollConceptDefinitionRepository,
 };
 
-const PAYROLL_CONCEPT_DEFINITION_TABLE: &str = "payroll_concept_definition";
+const TABLE: &str = "payroll_concept_definition";
 
 #[derive(Clone)]
 pub struct SurrealPayrollConceptDefinitionRepository<C>
@@ -40,32 +40,41 @@ where
         formula: String,
         condition: String,
     ) -> AppResult<PayrollConceptDefinition> {
-        let record: Option<Record> = self
+        let _: Option<JsonValue> = self
             .client
-            .create((PAYROLL_CONCEPT_DEFINITION_TABLE, id.to_string()))
+            .create((TABLE, id.to_string()))
             .content(json!({
-                "payroll_concept_id": payroll_concept_id,
+                "payroll_concept_id": payroll_concept_id.to_string(),
                 "formula": formula,
                 "condition": condition,
             }))
             .await?;
 
-        record.map(record_to_domain).transpose()?.ok_or_else(|| {
-            AppError::internal("database did not return created payroll concept definition")
-        })
+        self.fetch_by_concept(payroll_concept_id)
+            .await?
+            .ok_or_else(|| {
+                AppError::internal("database did not return created payroll concept definition")
+            })
     }
 
     async fn fetch_by_concept(
         &self,
         payroll_concept_id: Uuid,
     ) -> AppResult<Option<PayrollConceptDefinition>> {
-        let records: Vec<Record> = self.client.select(PAYROLL_CONCEPT_DEFINITION_TABLE).await?;
+        let mut response = self
+            .client
+            .query("SELECT * FROM payroll_concept_definition WHERE payroll_concept_id = $id")
+            .bind(("id", payroll_concept_id.to_string()))
+            .await?;
 
-        records
-            .into_iter()
-            .find(|record| record.payroll_concept_id == payroll_concept_id.to_string())
-            .map(record_to_domain)
-            .transpose()
+        // In SurrealDB v3 schemaless mode, querying a table with no rows yet returns a
+        // per-statement "table does not exist" error instead of an empty result.
+        let result: Result<Option<Record>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn update(
@@ -75,22 +84,44 @@ where
         condition: Option<String>,
     ) -> AppResult<Option<PayrollConceptDefinition>> {
         let payload = build_update_payload(formula, condition)?;
-        let record: Option<Record> = self
+
+        let _: Option<JsonValue> = self
             .client
-            .update((PAYROLL_CONCEPT_DEFINITION_TABLE, id.to_string()))
+            .update((TABLE, id.to_string()))
             .merge(payload)
             .await?;
 
-        record.map(record_to_domain).transpose()
+        self.fetch_by_id(id).await
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<Record> = self
+        let record: Option<JsonValue> = self
             .client
-            .delete((PAYROLL_CONCEPT_DEFINITION_TABLE, id.to_string()))
+            .delete((TABLE, id.to_string()))
             .await?;
 
         Ok(record.is_some())
+    }
+}
+
+impl<C> SurrealPayrollConceptDefinitionRepository<C>
+where
+    C: Connection + Clone + Send + Sync + 'static,
+{
+    async fn fetch_by_id(&self, id: Uuid) -> AppResult<Option<PayrollConceptDefinition>> {
+        let rid = RecordId::new(TABLE, id.to_string());
+        let mut response = self
+            .client
+            .query("SELECT * FROM payroll_concept_definition WHERE id = $rid")
+            .bind(("rid", rid))
+            .await?;
+
+        let result: Result<Option<Record>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 }
 
@@ -126,7 +157,6 @@ fn build_update_payload(
     if let Some(formula) = formula {
         object.insert("formula".to_string(), JsonValue::String(formula));
     }
-
     if let Some(condition) = condition {
         object.insert("condition".to_string(), JsonValue::String(condition));
     }

@@ -40,36 +40,50 @@ where
         description: String,
         organization_id: Uuid,
     ) -> AppResult<Payroll> {
-        let record: Option<PayrollRecord> = self
+        let _: Option<JsonValue> = self
             .client
             .create((PAYROLL_TABLE, id.to_string()))
             .content(json!({
                 "name": name,
                 "description": description,
-                "organization_id": organization_id,
+                "organization_id": organization_id.to_string(),
             }))
             .await?;
 
-        record
-            .map(record_to_domain)
-            .transpose()?
+        self.fetch(id)
+            .await?
             .ok_or_else(|| AppError::internal("database did not return created payroll"))
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<Payroll>> {
-        let record: Option<PayrollRecord> =
-            self.client.select((PAYROLL_TABLE, id.to_string())).await?;
+        let rid = RecordId::new(PAYROLL_TABLE, id.to_string());
+        let mut response = self
+            .client
+            .query("SELECT * FROM payroll WHERE id = $rid")
+            .bind(("rid", rid))
+            .await?;
 
-        record.map(record_to_domain).transpose()
+        let result: Result<Option<PayrollRecord>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn fetch_by_organization(&self, organization_id: Uuid) -> AppResult<Vec<Payroll>> {
-        let records: Vec<PayrollRecord> = self.client.select(PAYROLL_TABLE).await?;
-        records
-            .into_iter()
-            .filter(|record| record.organization_id == organization_id.to_string())
-            .map(record_to_domain)
-            .collect()
+        let mut response = self
+            .client
+            .query("SELECT * FROM payroll WHERE organization_id = $org_id")
+            .bind(("org_id", organization_id.to_string()))
+            .await?;
+
+        let result: Result<Vec<PayrollRecord>, _> = response.take(0);
+        match result {
+            Ok(records) => records.into_iter().map(record_to_domain).collect(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(vec![]),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn update(
@@ -79,18 +93,21 @@ where
         description: Option<String>,
     ) -> AppResult<Option<Payroll>> {
         let payload = build_update_payload(name, description)?;
-        let record: Option<PayrollRecord> = self
+
+        let _: Option<JsonValue> = self
             .client
             .update((PAYROLL_TABLE, id.to_string()))
             .merge(payload)
             .await?;
 
-        record.map(record_to_domain).transpose()
+        self.fetch(id).await
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<PayrollRecord> =
-            self.client.delete((PAYROLL_TABLE, id.to_string())).await?;
+        let record: Option<JsonValue> = self
+            .client
+            .delete((PAYROLL_TABLE, id.to_string()))
+            .await?;
 
         Ok(record.is_some())
     }
@@ -109,12 +126,7 @@ fn record_to_domain(record: PayrollRecord) -> AppResult<Payroll> {
     let organization_id =
         parse_uuid_field(&record.organization_id, "stored payroll organization_id")?;
 
-    Ok(Payroll::new(
-        id,
-        record.name,
-        record.description,
-        organization_id,
-    ))
+    Ok(Payroll::new(id, record.name, record.description, organization_id))
 }
 
 fn build_update_payload(name: Option<String>, description: Option<String>) -> AppResult<JsonValue> {
@@ -123,7 +135,6 @@ fn build_update_payload(name: Option<String>, description: Option<String>) -> Ap
     if let Some(name) = name {
         object.insert("name".to_string(), JsonValue::String(name));
     }
-
     if let Some(description) = description {
         object.insert("description".to_string(), JsonValue::String(description));
     }

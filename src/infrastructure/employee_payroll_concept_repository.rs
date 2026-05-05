@@ -9,7 +9,7 @@ use crate::{
     services::employee_payroll_concept::EmployeePayrollConceptRepository,
 };
 
-const EMPLOYEE_PAYROLL_CONCEPT_TABLE: &str = "employee_payroll_concept";
+const TABLE: &str = "employee_payroll_concept";
 
 #[derive(Clone)]
 pub struct SurrealEmployeePayrollConceptRepository<C>
@@ -40,33 +40,46 @@ where
         payroll_concept_id: Uuid,
         amount: f64,
     ) -> AppResult<EmployeePayrollConcept> {
-        let record: Option<Record> = self
+        let _: Option<JsonValue> = self
             .client
-            .create((EMPLOYEE_PAYROLL_CONCEPT_TABLE, id.to_string()))
+            .create((TABLE, id.to_string()))
             .content(build_record(employee_id, payroll_concept_id, amount))
             .await?;
 
-        record_to_domain(record.ok_or_else(|| {
-            AppError::internal("database did not return created employee payroll concept")
-        })?)
+        self.fetch(id)
+            .await?
+            .ok_or_else(|| AppError::internal("database did not return created employee payroll concept"))
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<EmployeePayrollConcept>> {
-        let record: Option<Record> = self
+        let rid = RecordId::new(TABLE, id.to_string());
+        let mut response = self
             .client
-            .select((EMPLOYEE_PAYROLL_CONCEPT_TABLE, id.to_string()))
+            .query("SELECT * FROM employee_payroll_concept WHERE id = $rid")
+            .bind(("rid", rid))
             .await?;
 
-        record.map(record_to_domain).transpose()
+        let result: Result<Option<Record>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn fetch_by_employee(&self, employee_id: Uuid) -> AppResult<Vec<EmployeePayrollConcept>> {
-        let records: Vec<Record> = self.client.select(EMPLOYEE_PAYROLL_CONCEPT_TABLE).await?;
-        records
-            .into_iter()
-            .filter(|record| record.employee_id == employee_id.to_string())
-            .map(record_to_domain)
-            .collect()
+        let mut response = self
+            .client
+            .query("SELECT * FROM employee_payroll_concept WHERE employee_id = $employee_id")
+            .bind(("employee_id", employee_id.to_string()))
+            .await?;
+
+        let result: Result<Vec<Record>, _> = response.take(0);
+        match result {
+            Ok(records) => records.into_iter().map(record_to_domain).collect(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(vec![]),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn fetch_by_employee_and_concept(
@@ -74,15 +87,22 @@ where
         employee_id: Uuid,
         payroll_concept_id: Uuid,
     ) -> AppResult<Option<EmployeePayrollConcept>> {
-        let records: Vec<Record> = self.client.select(EMPLOYEE_PAYROLL_CONCEPT_TABLE).await?;
-        records
-            .into_iter()
-            .find(|record| {
-                record.employee_id == employee_id.to_string()
-                    && record.payroll_concept_id == payroll_concept_id.to_string()
-            })
-            .map(record_to_domain)
-            .transpose()
+        let mut response = self
+            .client
+            .query(
+                "SELECT * FROM employee_payroll_concept \
+                 WHERE employee_id = $employee_id AND payroll_concept_id = $concept_id",
+            )
+            .bind(("employee_id", employee_id.to_string()))
+            .bind(("concept_id", payroll_concept_id.to_string()))
+            .await?;
+
+        let result: Result<Option<Record>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn update_amount(
@@ -93,19 +113,19 @@ where
         let mut payload = Map::new();
         payload.insert("amount".to_string(), JsonValue::from(amount));
 
-        let record: Option<Record> = self
+        let _: Option<JsonValue> = self
             .client
-            .update((EMPLOYEE_PAYROLL_CONCEPT_TABLE, id.to_string()))
+            .update((TABLE, id.to_string()))
             .merge(JsonValue::Object(payload))
             .await?;
 
-        record.map(record_to_domain).transpose()
+        self.fetch(id).await
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<Record> = self
+        let record: Option<JsonValue> = self
             .client
-            .delete((EMPLOYEE_PAYROLL_CONCEPT_TABLE, id.to_string()))
+            .delete((TABLE, id.to_string()))
             .await?;
 
         Ok(record.is_some())
@@ -122,14 +142,8 @@ struct Record {
 
 fn build_record(employee_id: Uuid, payroll_concept_id: Uuid, amount: f64) -> JsonValue {
     let mut object = Map::new();
-    object.insert(
-        "employee_id".to_string(),
-        JsonValue::String(employee_id.to_string()),
-    );
-    object.insert(
-        "payroll_concept_id".to_string(),
-        JsonValue::String(payroll_concept_id.to_string()),
-    );
+    object.insert("employee_id".to_string(), JsonValue::String(employee_id.to_string()));
+    object.insert("payroll_concept_id".to_string(), JsonValue::String(payroll_concept_id.to_string()));
     object.insert("amount".to_string(), JsonValue::from(amount));
     JsonValue::Object(object)
 }
@@ -145,12 +159,7 @@ fn record_to_domain(record: Record) -> AppResult<EmployeePayrollConcept> {
         "stored employee payroll concept payroll_concept_id",
     )?;
 
-    Ok(EmployeePayrollConcept::new(
-        id,
-        employee_id,
-        payroll_concept_id,
-        record.amount,
-    ))
+    Ok(EmployeePayrollConcept::new(id, employee_id, payroll_concept_id, record.amount))
 }
 
 pub type SurrealAnyEmployeePayrollConceptRepository = SurrealEmployeePayrollConceptRepository<Any>;

@@ -11,6 +11,12 @@ use crate::{
 
 const DIVISION_TABLE: &str = "division";
 
+// `??` coalesces null/NONE to the right-hand side, normalising stored SQL null
+// to NONE so SurrealValue deserialization of Option<String> succeeds.
+const SELECT_DIVISION_FIELDS: &str =
+    "SELECT id, name, description, budget_code, payroll_id, \
+     parent_division_id ?? NONE AS parent_division_id";
+
 #[derive(Clone)]
 pub struct SurrealDivisionRepository<C>
 where
@@ -42,38 +48,53 @@ where
         payroll_id: Uuid,
         parent_division_id: Option<Uuid>,
     ) -> AppResult<Division> {
-        let record: Option<DivisionRecord> = self
+        let mut payload = Map::new();
+        payload.insert("name".to_string(), json!(name));
+        payload.insert("description".to_string(), json!(description));
+        payload.insert("budget_code".to_string(), json!(budget_code));
+        payload.insert("payroll_id".to_string(), json!(payroll_id.to_string()));
+        if let Some(parent_id) = parent_division_id {
+            payload.insert("parent_division_id".to_string(), json!(parent_id.to_string()));
+        }
+
+        // Discard the create return value (surrealdb v3 returns null for absent optional
+        // fields) and re-fetch through the null-safe query instead.
+        let _: Option<JsonValue> = self
             .client
             .create((DIVISION_TABLE, id.to_string()))
-            .content(json!({
-                "name": name,
-                "description": description,
-                "budget_code": budget_code,
-                "payroll_id": payroll_id,
-                "parent_division_id": parent_division_id,
-            }))
+            .content(JsonValue::Object(payload))
             .await?;
 
-        record
-            .map(record_to_domain)
-            .transpose()?
+        self.fetch(id)
+            .await?
             .ok_or_else(|| AppError::internal("database did not return created division"))
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<Division>> {
-        let record: Option<DivisionRecord> =
-            self.client.select((DIVISION_TABLE, id.to_string())).await?;
+        let rid = RecordId::new(DIVISION_TABLE, id.to_string());
+        let mut response = self
+            .client
+            .query(format!(
+                "{SELECT_DIVISION_FIELDS} FROM division WHERE id = $rid"
+            ))
+            .bind(("rid", rid))
+            .await?;
 
+        let record: Option<DivisionRecord> = response.take(0)?;
         record.map(record_to_domain).transpose()
     }
 
     async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<Division>> {
-        let records: Vec<DivisionRecord> = self.client.select(DIVISION_TABLE).await?;
-        records
-            .into_iter()
-            .filter(|record| record.payroll_id == payroll_id.to_string())
-            .map(record_to_domain)
-            .collect()
+        let mut response = self
+            .client
+            .query(format!(
+                "{SELECT_DIVISION_FIELDS} FROM division WHERE payroll_id = $payroll_id"
+            ))
+            .bind(("payroll_id", payroll_id.to_string()))
+            .await?;
+
+        let records: Vec<DivisionRecord> = response.take(0)?;
+        records.into_iter().map(record_to_domain).collect()
     }
 
     async fn update(
@@ -86,18 +107,24 @@ where
     ) -> AppResult<Option<Division>> {
         let payload = build_update_payload(name, description, budget_code, parent_division_id)?;
 
-        let record: Option<DivisionRecord> = self
+        // Discard the merge return value to avoid SurrealValue null-deserialization issues,
+        // then re-fetch with the null-safe query. Returns None when the record doesn't exist.
+        let _: Option<JsonValue> = self
             .client
             .update((DIVISION_TABLE, id.to_string()))
             .merge(payload)
             .await?;
 
-        record.map(record_to_domain).transpose()
+        self.fetch(id).await
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<DivisionRecord> =
-            self.client.delete((DIVISION_TABLE, id.to_string())).await?;
+        // Use JsonValue to avoid SurrealValue deserialization issues with null fields
+        // in the returned record when the record has optional fields stored as null.
+        let record: Option<JsonValue> = self
+            .client
+            .delete((DIVISION_TABLE, id.to_string()))
+            .await?;
 
         Ok(record.is_some())
     }

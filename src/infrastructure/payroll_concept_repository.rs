@@ -16,6 +16,9 @@ use crate::{
 
 const PAYROLL_CONCEPT_TABLE: &str = "payroll_concept";
 
+const SELECT_PAYROLL_CONCEPT_FIELDS: &str =
+    "SELECT id, code, name, concept_type, scope, period, active, payroll_id";
+
 #[derive(Clone)]
 pub struct SurrealPayrollConceptRepository<C>
 where
@@ -39,13 +42,15 @@ where
     C: Connection + Clone + Send + Sync + 'static,
 {
     async fn insert(&self, params: InsertPayrollConceptParams) -> AppResult<PayrollConcept> {
-        let record: Option<PayrollConceptRecord> = self
+        // NOTE: field is stored as "concept_type", not "type" — "type" is a reserved
+        // keyword in SurrealDB and is stripped from returned records.
+        let _: Option<JsonValue> = self
             .client
             .create((PAYROLL_CONCEPT_TABLE, params.id.to_string()))
             .content(json!({
                 "code": params.code,
                 "name": params.name,
-                "type": params.concept_type,
+                "concept_type": params.concept_type,
                 "scope": params.scope,
                 "period": params.period,
                 "active": params.active,
@@ -53,28 +58,44 @@ where
             }))
             .await?;
 
-        record
-            .map(record_to_domain)
-            .transpose()?
+        self.fetch(params.id)
+            .await?
             .ok_or_else(|| AppError::internal("database did not return created payroll concept"))
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollConcept>> {
-        let record: Option<PayrollConceptRecord> = self
+        let rid = RecordId::new(PAYROLL_CONCEPT_TABLE, id.to_string());
+        let mut response = self
             .client
-            .select((PAYROLL_CONCEPT_TABLE, id.to_string()))
+            .query(format!(
+                "{SELECT_PAYROLL_CONCEPT_FIELDS} FROM payroll_concept WHERE id = $rid"
+            ))
+            .bind(("rid", rid))
             .await?;
-        record.map(record_to_domain).transpose()
+
+        let result: Result<Option<PayrollConceptRecord>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn fetch_by_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<PayrollConcept>> {
-        let records: Vec<PayrollConceptRecord> = self.client.select(PAYROLL_CONCEPT_TABLE).await?;
+        let mut response = self
+            .client
+            .query(format!(
+                "{SELECT_PAYROLL_CONCEPT_FIELDS} FROM payroll_concept WHERE payroll_id = $payroll_id"
+            ))
+            .bind(("payroll_id", payroll_id.to_string()))
+            .await?;
 
-        records
-            .into_iter()
-            .filter(|record| record.payroll_id == payroll_id.to_string())
-            .map(record_to_domain)
-            .collect()
+        let result: Result<Vec<PayrollConceptRecord>, _> = response.take(0);
+        match result {
+            Ok(records) => records.into_iter().map(record_to_domain).collect(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(vec![]),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn update(
@@ -83,20 +104,22 @@ where
         params: UpdatePayrollConceptParams,
     ) -> AppResult<Option<PayrollConcept>> {
         let payload = build_update_payload(params)?;
-        let record: Option<PayrollConceptRecord> = self
+
+        let _: Option<JsonValue> = self
             .client
             .update((PAYROLL_CONCEPT_TABLE, id.to_string()))
             .merge(payload)
             .await?;
 
-        record.map(record_to_domain).transpose()
+        self.fetch(id).await
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<PayrollConceptRecord> = self
+        let record: Option<JsonValue> = self
             .client
             .delete((PAYROLL_CONCEPT_TABLE, id.to_string()))
             .await?;
+
         Ok(record.is_some())
     }
 }
@@ -106,7 +129,6 @@ struct PayrollConceptRecord {
     id: RecordId,
     code: String,
     name: String,
-    #[serde(rename = "type")]
     concept_type: String,
     scope: String,
     period: String,
@@ -139,32 +161,27 @@ fn build_update_payload(params: UpdatePayrollConceptParams) -> AppResult<JsonVal
     if let Some(code) = params.code {
         object.insert("code".to_string(), JsonValue::String(code));
     }
-
     if let Some(name) = params.name {
         object.insert("name".to_string(), JsonValue::String(name));
     }
-
     if let Some(concept_type) = params.concept_type {
         let value = serde_json::to_value(concept_type).map_err(|_| {
             AppError::internal("failed to serialize concept type for update payload")
         })?;
-        object.insert("type".to_string(), value);
+        object.insert("concept_type".to_string(), value);
     }
-
     if let Some(scope) = params.scope {
         let value = serde_json::to_value(scope).map_err(|_| {
             AppError::internal("failed to serialize concept scope for update payload")
         })?;
         object.insert("scope".to_string(), value);
     }
-
     if let Some(period) = params.period {
         let value = serde_json::to_value(period).map_err(|_| {
             AppError::internal("failed to serialize concept period for update payload")
         })?;
         object.insert("period".to_string(), value);
     }
-
     if let Some(active) = params.active {
         object.insert("active".to_string(), JsonValue::Bool(active));
     }

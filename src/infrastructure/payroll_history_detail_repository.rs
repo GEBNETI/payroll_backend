@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value as JsonValue};
 use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
 use uuid::Uuid;
 
@@ -12,7 +12,7 @@ use crate::{
     services::payroll_history_detail::PayrollHistoryDetailRepository,
 };
 
-const PAYROLL_HISTORY_DETAIL_TABLE: &str = "payroll_history_detail";
+const TABLE: &str = "payroll_history_detail";
 
 #[derive(Clone)]
 pub struct SurrealPayrollHistoryDetailRepository<C>
@@ -37,18 +37,19 @@ where
     C: Connection + Clone + Send + Sync + 'static,
 {
     async fn insert(&self, data: NewPayrollHistoryDetailData) -> AppResult<PayrollHistoryDetail> {
-        let record: Option<PayrollHistoryDetailRecord> = self
+        let id = data.id;
+        let _: Option<JsonValue> = self
             .client
-            .create((PAYROLL_HISTORY_DETAIL_TABLE, data.id.to_string()))
+            .create((TABLE, id.to_string()))
             .content(json!({
-                "payroll_history_id": data.payroll_history_id,
-                "division_id": data.division_id,
+                "payroll_history_id": data.payroll_history_id.to_string(),
+                "division_id": data.division_id.to_string(),
                 "division_name": data.division_name,
                 "division_budget_code": data.division_budget_code,
-                "job_id": data.job_id,
+                "job_id": data.job_id.to_string(),
                 "job_title": data.job_title,
                 "job_salary": data.job_salary,
-                "employee_id": data.employee_id,
+                "employee_id": data.employee_id.to_string(),
                 "employee_id_number": data.employee_id_number,
                 "employee_last_name": data.employee_last_name,
                 "employee_first_name": data.employee_first_name,
@@ -57,9 +58,9 @@ where
                 "employee_clasification": data.employee_clasification,
                 "employee_hours": data.employee_hours,
                 "employee_bank_account": data.employee_bank_account,
-                "bank_id": data.bank_id,
+                "bank_id": data.bank_id.to_string(),
                 "bank_name": data.bank_name,
-                "payroll_concept_id": data.payroll_concept_id,
+                "payroll_concept_id": data.payroll_concept_id.to_string(),
                 "payroll_concept_code": data.payroll_concept_code,
                 "payroll_concept_name": data.payroll_concept_name,
                 "payroll_concept_type": concept_type_to_string(&data.payroll_concept_type),
@@ -69,40 +70,52 @@ where
             }))
             .await?;
 
-        record.map(record_to_domain).transpose()?.ok_or_else(|| {
-            AppError::internal("database did not return created payroll history detail")
-        })
+        self.fetch(id)
+            .await?
+            .ok_or_else(|| AppError::internal("database did not return created payroll history detail"))
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollHistoryDetail>> {
-        let record: Option<PayrollHistoryDetailRecord> = self
+        let rid = RecordId::new(TABLE, id.to_string());
+        let mut response = self
             .client
-            .select((PAYROLL_HISTORY_DETAIL_TABLE, id.to_string()))
+            .query("SELECT * FROM payroll_history_detail WHERE id = $rid")
+            .bind(("rid", rid))
             .await?;
 
-        record.map(record_to_domain).transpose()
+        let result: Result<Option<PayrollHistoryDetailRecord>, _> = response.take(0);
+        match result {
+            Ok(record) => record.map(record_to_domain).transpose(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn fetch_by_payroll_history(
         &self,
         payroll_history_id: Uuid,
     ) -> AppResult<Vec<PayrollHistoryDetail>> {
-        let mut result = self
+        let mut response = self
             .client
             .query(
-                "SELECT * FROM type::table($table) WHERE payroll_history_id = $payroll_history_id",
+                "SELECT * FROM payroll_history_detail \
+                 WHERE payroll_history_id = $payroll_history_id",
             )
-            .bind(("table", PAYROLL_HISTORY_DETAIL_TABLE))
             .bind(("payroll_history_id", payroll_history_id.to_string()))
             .await?;
-        let records: Vec<PayrollHistoryDetailRecord> = result.take(0)?;
-        records.into_iter().map(record_to_domain).collect()
+
+        let result: Result<Vec<PayrollHistoryDetailRecord>, _> = response.take(0);
+        match result {
+            Ok(records) => records.into_iter().map(record_to_domain).collect(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(vec![]),
+            Err(e) => Err(AppError::from(e)),
+        }
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<PayrollHistoryDetailRecord> = self
+        let record: Option<JsonValue> = self
             .client
-            .delete((PAYROLL_HISTORY_DETAIL_TABLE, id.to_string()))
+            .delete((TABLE, id.to_string()))
             .await?;
 
         Ok(record.is_some())
