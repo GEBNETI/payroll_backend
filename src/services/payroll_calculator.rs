@@ -39,7 +39,13 @@ const MAX_CONDITION_LENGTH: usize = 500;
 const MAX_WARNINGS: usize = 100;
 
 /// Base context variable names that are always available in formulas
-const BASE_CONTEXT_VARS: &[&str] = &["salary", "hours", "classification", "job_salary", "job_title"];
+const BASE_CONTEXT_VARS: &[&str] = &[
+    "salary",
+    "hours",
+    "classification",
+    "job_salary",
+    "job_title",
+];
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CalculationResult {
@@ -168,11 +174,19 @@ impl PayrollCalculatorService {
         // Extract individual and global code maps from unified map
         let individual_code_map: HashMap<String, String> = individual_concepts
             .iter()
-            .filter_map(|c| unified_code_map.get(&c.code).map(|s| (c.code.clone(), s.clone())))
+            .filter_map(|c| {
+                unified_code_map
+                    .get(&c.code)
+                    .map(|s| (c.code.clone(), s.clone()))
+            })
             .collect();
         let global_code_map: HashMap<String, String> = global_concepts
             .iter()
-            .filter_map(|c| unified_code_map.get(&c.code).map(|s| (c.code.clone(), s.clone())))
+            .filter_map(|c| {
+                unified_code_map
+                    .get(&c.code)
+                    .map(|s| (c.code.clone(), s.clone()))
+            })
             .collect();
 
         // Add collision warnings (within concepts)
@@ -299,16 +313,17 @@ impl PayrollCalculatorService {
             .chain(individual_code_map.values().cloned())
             .collect();
 
-        let sorted_globals = match Self::topological_sort_globals(globals_with_defs, &all_sanitized_codes) {
-            Ok(sorted) => sorted,
-            Err(cycle_warning) => {
-                // Circular dependency detected - fail with clear error
-                return Err(AppError::validation(format!(
-                    "Cannot calculate payroll: {}",
-                    cycle_warning
-                )));
-            }
-        };
+        let sorted_globals =
+            match Self::topological_sort_globals(globals_with_defs, &all_sanitized_codes) {
+                Ok(sorted) => sorted,
+                Err(cycle_warning) => {
+                    // Circular dependency detected - fail with clear error
+                    return Err(AppError::validation(format!(
+                        "Cannot calculate payroll: {}",
+                        cycle_warning
+                    )));
+                }
+            };
 
         // 9.5. Check for undefined variable references in formulas/conditions
         let base_vars: HashSet<String> = BASE_CONTEXT_VARS.iter().map(|s| s.to_string()).collect();
@@ -321,8 +336,10 @@ impl PayrollCalculatorService {
         for global in &sorted_globals {
             let formula_vars =
                 Self::extract_variable_references(&global.definition.formula, &all_sanitized_codes);
-            let condition_vars =
-                Self::extract_variable_references(&global.definition.condition, &all_sanitized_codes);
+            let condition_vars = Self::extract_variable_references(
+                &global.definition.condition,
+                &all_sanitized_codes,
+            );
 
             for var in formula_vars {
                 if !all_available_vars.contains(&var) {
@@ -477,7 +494,12 @@ impl PayrollCalculatorService {
         // Process individual concepts
         let employee_concepts = match self
             .employee_payroll_concept_service
-            .list(organization_id, payroll_id, employee.division_id, employee.id)
+            .list(
+                organization_id,
+                payroll_id,
+                employee.division_id,
+                employee.id,
+            )
             .await
         {
             Ok(concepts) => concepts,
@@ -828,7 +850,13 @@ impl PayrollCalculatorService {
         // Valid: alphanumeric and underscore, cannot start with digit
         let mut sanitized = name
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect::<String>();
 
         // If starts with digit, prefix with underscore
@@ -1132,11 +1160,7 @@ impl PayrollCalculatorService {
     /// - `my_regex_matches` does NOT match `regex_matches`
     /// - Only matches when the function name appears as a standalone identifier followed by `(`
     fn check_disallowed_functions(expression: &str) -> Vec<&'static str> {
-        const DISALLOWED_FUNCTIONS: &[&str] = &[
-            "regex_matches",
-            "regex_replace",
-            "random",
-        ];
+        const DISALLOWED_FUNCTIONS: &[&str] = &["regex_matches", "regex_replace", "random"];
 
         let mut found = Vec::new();
         for func in DISALLOWED_FUNCTIONS {

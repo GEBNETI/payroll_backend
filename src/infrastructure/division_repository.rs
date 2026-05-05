@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -13,8 +17,7 @@ const DIVISION_TABLE: &str = "division";
 
 // `??` coalesces null/NONE to the right-hand side, normalising stored SQL null
 // to NONE so SurrealValue deserialization of Option<String> succeeds.
-const SELECT_DIVISION_FIELDS: &str =
-    "SELECT id, name, description, budget_code, payroll_id, \
+const SELECT_DIVISION_FIELDS: &str = "SELECT id, name, description, budget_code, payroll_id, \
      parent_division_id ?? NONE AS parent_division_id";
 
 #[derive(Clone)]
@@ -54,7 +57,10 @@ where
         payload.insert("budget_code".to_string(), json!(budget_code));
         payload.insert("payroll_id".to_string(), json!(payroll_id.to_string()));
         if let Some(parent_id) = parent_division_id {
-            payload.insert("parent_division_id".to_string(), json!(parent_id.to_string()));
+            payload.insert(
+                "parent_division_id".to_string(),
+                json!(parent_id.to_string()),
+            );
         }
 
         // Discard the create return value (surrealdb v3 returns null for absent optional
@@ -121,10 +127,8 @@ where
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
         // Use JsonValue to avoid SurrealValue deserialization issues with null fields
         // in the returned record when the record has optional fields stored as null.
-        let record: Option<JsonValue> = self
-            .client
-            .delete((DIVISION_TABLE, id.to_string()))
-            .await?;
+        let record: Option<JsonValue> =
+            self.client.delete((DIVISION_TABLE, id.to_string())).await?;
 
         Ok(record.is_some())
     }

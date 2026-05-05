@@ -1,7 +1,11 @@
 use chrono::NaiveDate;
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -75,7 +79,10 @@ where
         payload.insert("address".to_string(), json!(address));
         payload.insert("phone".to_string(), json!(phone));
         payload.insert("place_of_birth".to_string(), json!(place_of_birth));
-        payload.insert("date_of_birth".to_string(), json!(date_of_birth.to_string()));
+        payload.insert(
+            "date_of_birth".to_string(),
+            json!(date_of_birth.to_string()),
+        );
         payload.insert("nationality".to_string(), json!(nationality));
         payload.insert("marital_status".to_string(), json!(marital_status));
         payload.insert("gender".to_string(), json!(gender));
@@ -144,10 +151,8 @@ where
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<JsonValue> = self
-            .client
-            .delete((EMPLOYEE_TABLE, id.to_string()))
-            .await?;
+        let record: Option<JsonValue> =
+            self.client.delete((EMPLOYEE_TABLE, id.to_string())).await?;
 
         Ok(record.is_some())
     }
@@ -243,27 +248,42 @@ fn build_update_payload(updates: UpdateEmployeeParams) -> AppResult<JsonValue> {
         object.insert("phone".to_string(), JsonValue::String(phone));
     }
     if let Some(place_of_birth) = updates.place_of_birth {
-        object.insert("place_of_birth".to_string(), JsonValue::String(place_of_birth));
+        object.insert(
+            "place_of_birth".to_string(),
+            JsonValue::String(place_of_birth),
+        );
     }
     if let Some(date_of_birth) = updates.date_of_birth {
-        object.insert("date_of_birth".to_string(), JsonValue::String(date_of_birth.to_string()));
+        object.insert(
+            "date_of_birth".to_string(),
+            JsonValue::String(date_of_birth.to_string()),
+        );
     }
     if let Some(nationality) = updates.nationality {
         object.insert("nationality".to_string(), JsonValue::String(nationality));
     }
     if let Some(marital_status) = updates.marital_status {
-        object.insert("marital_status".to_string(), JsonValue::String(marital_status));
+        object.insert(
+            "marital_status".to_string(),
+            JsonValue::String(marital_status),
+        );
     }
     if let Some(gender) = updates.gender {
         object.insert("gender".to_string(), JsonValue::String(gender));
     }
     if let Some(hire_date) = updates.hire_date {
-        object.insert("hire_date".to_string(), JsonValue::String(hire_date.to_string()));
+        object.insert(
+            "hire_date".to_string(),
+            JsonValue::String(hire_date.to_string()),
+        );
     }
     if let Some(termination_date) = updates.termination_date {
         match termination_date {
             Some(value) => {
-                object.insert("termination_date".to_string(), JsonValue::String(value.to_string()));
+                object.insert(
+                    "termination_date".to_string(),
+                    JsonValue::String(value.to_string()),
+                );
             }
             None => {
                 object.insert("termination_date".to_string(), JsonValue::Null);
@@ -271,13 +291,19 @@ fn build_update_payload(updates: UpdateEmployeeParams) -> AppResult<JsonValue> {
         }
     }
     if let Some(clasification) = updates.clasification {
-        object.insert("clasification".to_string(), JsonValue::String(clasification));
+        object.insert(
+            "clasification".to_string(),
+            JsonValue::String(clasification),
+        );
     }
     if let Some(job_id) = updates.job_id {
         object.insert("job_id".to_string(), JsonValue::String(job_id.to_string()));
     }
     if let Some(bank_id) = updates.bank_id {
-        object.insert("bank_id".to_string(), JsonValue::String(bank_id.to_string()));
+        object.insert(
+            "bank_id".to_string(),
+            JsonValue::String(bank_id.to_string()),
+        );
     }
     if let Some(bank_account) = updates.bank_account {
         object.insert("bank_account".to_string(), JsonValue::String(bank_account));

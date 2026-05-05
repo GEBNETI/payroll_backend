@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -199,7 +203,9 @@ fn parse_concept_type(value: &str) -> AppResult<PayrollConceptType> {
     match value {
         "earning" => Ok(PayrollConceptType::Earning),
         "deduction" => Ok(PayrollConceptType::Deduction),
-        _ => Err(AppError::internal(format!("unknown payroll concept type: {value}"))),
+        _ => Err(AppError::internal(format!(
+            "unknown payroll concept type: {value}"
+        ))),
     }
 }
 
@@ -207,7 +213,9 @@ fn parse_concept_scope(value: &str) -> AppResult<PayrollConceptScope> {
     match value {
         "global" => Ok(PayrollConceptScope::Global),
         "individual" => Ok(PayrollConceptScope::Individual),
-        _ => Err(AppError::internal(format!("unknown payroll concept scope: {value}"))),
+        _ => Err(AppError::internal(format!(
+            "unknown payroll concept scope: {value}"
+        ))),
     }
 }
 
@@ -217,7 +225,9 @@ fn parse_concept_period(value: &str) -> AppResult<PayrollConceptPeriod> {
         "2" => Ok(PayrollConceptPeriod::Two),
         "both" => Ok(PayrollConceptPeriod::Both),
         "special" => Ok(PayrollConceptPeriod::Special),
-        _ => Err(AppError::internal(format!("unknown payroll concept period: {value}"))),
+        _ => Err(AppError::internal(format!(
+            "unknown payroll concept period: {value}"
+        ))),
     }
 }
 

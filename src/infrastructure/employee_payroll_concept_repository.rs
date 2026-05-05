@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use serde_json::{Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -46,9 +50,9 @@ where
             .content(build_record(employee_id, payroll_concept_id, amount))
             .await?;
 
-        self.fetch(id)
-            .await?
-            .ok_or_else(|| AppError::internal("database did not return created employee payroll concept"))
+        self.fetch(id).await?.ok_or_else(|| {
+            AppError::internal("database did not return created employee payroll concept")
+        })
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<EmployeePayrollConcept>> {
@@ -123,10 +127,7 @@ where
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<JsonValue> = self
-            .client
-            .delete((TABLE, id.to_string()))
-            .await?;
+        let record: Option<JsonValue> = self.client.delete((TABLE, id.to_string())).await?;
 
         Ok(record.is_some())
     }
@@ -142,8 +143,14 @@ struct Record {
 
 fn build_record(employee_id: Uuid, payroll_concept_id: Uuid, amount: f64) -> JsonValue {
     let mut object = Map::new();
-    object.insert("employee_id".to_string(), JsonValue::String(employee_id.to_string()));
-    object.insert("payroll_concept_id".to_string(), JsonValue::String(payroll_concept_id.to_string()));
+    object.insert(
+        "employee_id".to_string(),
+        JsonValue::String(employee_id.to_string()),
+    );
+    object.insert(
+        "payroll_concept_id".to_string(),
+        JsonValue::String(payroll_concept_id.to_string()),
+    );
     object.insert("amount".to_string(), JsonValue::from(amount));
     JsonValue::Object(object)
 }
@@ -159,7 +166,12 @@ fn record_to_domain(record: Record) -> AppResult<EmployeePayrollConcept> {
         "stored employee payroll concept payroll_concept_id",
     )?;
 
-    Ok(EmployeePayrollConcept::new(id, employee_id, payroll_concept_id, record.amount))
+    Ok(EmployeePayrollConcept::new(
+        id,
+        employee_id,
+        payroll_concept_id,
+        record.amount,
+    ))
 }
 
 pub type SurrealAnyEmployeePayrollConceptRepository = SurrealEmployeePayrollConceptRepository<Any>;

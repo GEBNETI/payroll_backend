@@ -1,7 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -109,10 +113,7 @@ where
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<JsonValue> = self
-            .client
-            .delete((TABLE, id.to_string()))
-            .await?;
+        let record: Option<JsonValue> = self.client.delete((TABLE, id.to_string())).await?;
 
         Ok(record.is_some())
     }
@@ -206,22 +207,40 @@ fn build_update_payload(params: UpdatePayrollHistoryParams) -> AppResult<JsonVal
         object.insert("period".to_string(), JsonValue::String(period));
     }
     if let Some(start_date) = params.start_date {
-        object.insert("start_date".to_string(), JsonValue::String(start_date.to_string()));
+        object.insert(
+            "start_date".to_string(),
+            JsonValue::String(start_date.to_string()),
+        );
     }
     if let Some(end_date) = params.end_date {
-        object.insert("end_date".to_string(), JsonValue::String(end_date.to_string()));
+        object.insert(
+            "end_date".to_string(),
+            JsonValue::String(end_date.to_string()),
+        );
     }
     if let Some(status) = params.status {
-        object.insert("status".to_string(), JsonValue::String(status_to_string(&status).to_string()));
+        object.insert(
+            "status".to_string(),
+            JsonValue::String(status_to_string(&status).to_string()),
+        );
     }
     if let Some(total_employees) = params.total_employees {
-        object.insert("total_employees".to_string(), JsonValue::from(total_employees));
+        object.insert(
+            "total_employees".to_string(),
+            JsonValue::from(total_employees),
+        );
     }
     if let Some(total_earnings) = params.total_earnings {
-        object.insert("total_earnings".to_string(), JsonValue::from(total_earnings));
+        object.insert(
+            "total_earnings".to_string(),
+            JsonValue::from(total_earnings),
+        );
     }
     if let Some(total_deductions) = params.total_deductions {
-        object.insert("total_deductions".to_string(), JsonValue::from(total_deductions));
+        object.insert(
+            "total_deductions".to_string(),
+            JsonValue::from(total_deductions),
+        );
     }
 
     if object.is_empty() {

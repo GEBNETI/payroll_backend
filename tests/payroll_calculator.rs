@@ -1399,7 +1399,9 @@ async fn warns_on_disallowed_regex_function() {
     assert!(
         warnings.iter().any(|w| {
             let s = w.as_str().unwrap_or("");
-            s.contains("REGEX_TEST") && s.contains("disallowed functions") && s.contains("regex_matches")
+            s.contains("REGEX_TEST")
+                && s.contains("disallowed functions")
+                && s.contains("regex_matches")
         }),
         "Expected warning about disallowed regex function, got: {:?}",
         warnings
@@ -1582,7 +1584,9 @@ async fn warns_when_employee_skipped_by_condition() {
     assert!(
         warnings.iter().any(|w| {
             let s = w.as_str().unwrap_or("");
-            s.contains("skipped") && s.contains("HIGH_EARNER_BONUS") && s.contains("condition evaluated to false")
+            s.contains("skipped")
+                && s.contains("HIGH_EARNER_BONUS")
+                && s.contains("condition evaluated to false")
         }),
         "Expected warning about employee skipped by condition, got: {:?}",
         warnings

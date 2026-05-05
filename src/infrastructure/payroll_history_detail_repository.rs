@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use serde_json::{json, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -70,9 +74,9 @@ where
             }))
             .await?;
 
-        self.fetch(id)
-            .await?
-            .ok_or_else(|| AppError::internal("database did not return created payroll history detail"))
+        self.fetch(id).await?.ok_or_else(|| {
+            AppError::internal("database did not return created payroll history detail")
+        })
     }
 
     async fn fetch(&self, id: Uuid) -> AppResult<Option<PayrollHistoryDetail>> {
@@ -113,10 +117,7 @@ where
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<JsonValue> = self
-            .client
-            .delete((TABLE, id.to_string()))
-            .await?;
+        let record: Option<JsonValue> = self.client.delete((TABLE, id.to_string())).await?;
 
         Ok(record.is_some())
     }

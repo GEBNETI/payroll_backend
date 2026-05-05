@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -104,10 +108,7 @@ where
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<JsonValue> = self
-            .client
-            .delete((JOB_TABLE, id.to_string()))
-            .await?;
+        let record: Option<JsonValue> = self.client.delete((JOB_TABLE, id.to_string())).await?;
 
         Ok(record.is_some())
     }

@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -104,10 +108,7 @@ where
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<JsonValue> = self
-            .client
-            .delete((PAYROLL_TABLE, id.to_string()))
-            .await?;
+        let record: Option<JsonValue> = self.client.delete((PAYROLL_TABLE, id.to_string())).await?;
 
         Ok(record.is_some())
     }
@@ -126,7 +127,12 @@ fn record_to_domain(record: PayrollRecord) -> AppResult<Payroll> {
     let organization_id =
         parse_uuid_field(&record.organization_id, "stored payroll organization_id")?;
 
-    Ok(Payroll::new(id, record.name, record.description, organization_id))
+    Ok(Payroll::new(
+        id,
+        record.name,
+        record.description,
+        organization_id,
+    ))
 }
 
 fn build_update_payload(name: Option<String>, description: Option<String>) -> AppResult<JsonValue> {

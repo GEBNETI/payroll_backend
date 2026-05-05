@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Connection, Surreal};
+use surrealdb::{
+    engine::any::Any,
+    types::{RecordId, SurrealValue},
+    Connection, Surreal,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -62,10 +66,7 @@ where
     }
 
     async fn fetch_all(&self) -> AppResult<Vec<Organization>> {
-        let mut response = self
-            .client
-            .query("SELECT * FROM organization")
-            .await?;
+        let mut response = self.client.query("SELECT * FROM organization").await?;
 
         let result: Result<Vec<OrganizationRecord>, _> = response.take(0);
         match result {
