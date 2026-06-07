@@ -26,7 +26,7 @@ pub struct CreateEmployeeParams {
     pub gender: String,
     pub hire_date: NaiveDate,
     pub termination_date: Option<NaiveDate>,
-    pub clasification: String,
+    pub classification: String,
     pub job_id: Uuid,
     pub bank_id: Uuid,
     pub bank_account: String,
@@ -49,7 +49,7 @@ pub struct UpdateEmployeeParams {
     pub gender: Option<String>,
     pub hire_date: Option<NaiveDate>,
     pub termination_date: Option<Option<NaiveDate>>,
-    pub clasification: Option<String>,
+    pub classification: Option<String>,
     pub job_id: Option<Uuid>,
     pub bank_id: Option<Uuid>,
     pub bank_account: Option<String>,
@@ -76,7 +76,7 @@ pub trait EmployeeRepository: Send + Sync {
         gender: String,
         hire_date: NaiveDate,
         termination_date: Option<NaiveDate>,
-        clasification: String,
+        classification: String,
         job_id: Uuid,
         bank_id: Uuid,
         bank_account: String,
@@ -153,7 +153,7 @@ impl EmployeeService {
         let nationality = Self::normalize_field(&params.nationality, "nationality")?;
         let marital_status = Self::normalize_field(&params.marital_status, "marital status")?;
         let gender = Self::normalize_field(&params.gender, "gender")?;
-        let clasification = Self::normalize_field(&params.clasification, "clasification")?;
+        let classification = Self::normalize_field(&params.classification, "classification")?;
         let bank_account = Self::normalize_field(&params.bank_account, "bank account")?;
         let status = Self::normalize_field(&params.status, "status")?;
         let hours = Self::validate_hours(params.hours)?;
@@ -177,7 +177,7 @@ impl EmployeeService {
                 gender,
                 hire_date,
                 termination_date,
-                clasification,
+                classification,
                 params.job_id,
                 params.bank_id,
                 bank_account,
@@ -242,7 +242,7 @@ impl EmployeeService {
             && params.gender.is_none()
             && params.hire_date.is_none()
             && params.termination_date.is_none()
-            && params.clasification.is_none()
+            && params.classification.is_none()
             && params.job_id.is_none()
             && params.bank_id.is_none()
             && params.bank_account.is_none()
@@ -325,10 +325,10 @@ impl EmployeeService {
                 .transpose()?,
             hire_date: params.hire_date,
             termination_date,
-            clasification: params
-                .clasification
+            classification: params
+                .classification
                 .as_deref()
-                .map(|value| Self::normalize_field(value, "clasification"))
+                .map(|value| Self::normalize_field(value, "classification"))
                 .transpose()?,
             job_id: params.job_id,
             bank_id: params.bank_id,

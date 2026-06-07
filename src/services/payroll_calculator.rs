@@ -1082,7 +1082,7 @@ impl PayrollCalculatorService {
         context
             .set_value(
                 "classification".to_string(),
-                employee.clasification.clone().into(),
+                employee.classification.clone().into(),
             )
             .map_err(|e| format!("Failed to set classification: {}", e))?;
 

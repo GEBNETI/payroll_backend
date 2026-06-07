@@ -32,7 +32,7 @@ pub struct CreateEmployeeRequest {
     pub hire_date: NaiveDate,
     #[schema(value_type = Option<String>, format = Date)]
     pub termination_date: Option<NaiveDate>,
-    pub clasification: String,
+    pub classification: String,
     pub job_id: Uuid,
     pub bank_id: Uuid,
     pub bank_account: String,
@@ -59,7 +59,7 @@ pub struct UpdateEmployeeRequest {
     #[serde(default, deserialize_with = "deserialize_option_option")]
     #[schema(value_type = Option<String>, format = Date)]
     pub termination_date: Option<Option<NaiveDate>>,
-    pub clasification: Option<String>,
+    pub classification: Option<String>,
     pub job_id: Option<Uuid>,
     pub bank_id: Option<Uuid>,
     pub bank_account: Option<String>,
@@ -86,7 +86,7 @@ pub struct EmployeeResponse {
     pub hire_date: NaiveDate,
     #[schema(value_type = Option<String>, format = Date)]
     pub termination_date: Option<NaiveDate>,
-    pub clasification: String,
+    pub classification: String,
     pub job_id: Uuid,
     pub bank_id: Uuid,
     pub bank_account: String,
@@ -130,7 +130,7 @@ impl From<Employee> for EmployeeResponse {
             gender: value.gender,
             hire_date: value.hire_date,
             termination_date: value.termination_date,
-            clasification: value.clasification,
+            classification: value.classification,
             job_id: value.job_id,
             bank_id: value.bank_id,
             bank_account: value.bank_account,
@@ -158,7 +158,7 @@ impl From<CreateEmployeeRequest> for CreateEmployeeParams {
             gender: req.gender,
             hire_date: req.hire_date,
             termination_date: req.termination_date,
-            clasification: req.clasification,
+            classification: req.classification,
             job_id: req.job_id,
             bank_id: req.bank_id,
             bank_account: req.bank_account,
@@ -184,7 +184,7 @@ impl From<UpdateEmployeeRequest> for UpdateEmployeeParams {
             gender: req.gender,
             hire_date: req.hire_date,
             termination_date: req.termination_date,
-            clasification: req.clasification,
+            classification: req.classification,
             job_id: req.job_id,
             bank_id: req.bank_id,
             bank_account: req.bank_account,

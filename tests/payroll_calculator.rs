@@ -180,7 +180,7 @@ async fn create_employee(
                         "bank_account": "12345678",
                         "salary": salary,
                         "hours": hours,
-                        "clasification": "regular",
+                        "classification": "regular",
                         "status": "active",
                         "hire_date": "2024-01-01",
                         "termination_date": null

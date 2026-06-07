@@ -27,7 +27,7 @@ pub struct PayrollHistoryDetail {
     #[schema(value_type = String, format = Date)]
     pub employee_hire_date: NaiveDate,
     pub employee_salary: f64,
-    pub employee_clasification: String,
+    pub employee_classification: String,
     pub employee_hours: i32,
     pub employee_bank_account: String,
     // Bank info (denormalized)
@@ -60,7 +60,7 @@ pub struct NewPayrollHistoryDetailData {
     pub employee_first_name: String,
     pub employee_hire_date: NaiveDate,
     pub employee_salary: f64,
-    pub employee_clasification: String,
+    pub employee_classification: String,
     pub employee_hours: i32,
     pub employee_bank_account: String,
     pub bank_id: Uuid,
@@ -91,7 +91,7 @@ impl PayrollHistoryDetail {
             employee_first_name: data.employee_first_name,
             employee_hire_date: data.employee_hire_date,
             employee_salary: data.employee_salary,
-            employee_clasification: data.employee_clasification,
+            employee_classification: data.employee_classification,
             employee_hours: data.employee_hours,
             employee_bank_account: data.employee_bank_account,
             bank_id: data.bank_id,

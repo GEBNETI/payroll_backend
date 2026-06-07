@@ -21,7 +21,7 @@ const SELECT_EMPLOYEE_FIELDS: &str =
     "SELECT id, id_number, last_name, first_name, address, phone, place_of_birth, \
      date_of_birth, nationality, marital_status, gender, hire_date, \
      termination_date ?? NONE AS termination_date, \
-     clasification, job_id, bank_id, bank_account, status, hours, salary, \
+     classification, job_id, bank_id, bank_account, status, hours, salary, \
      division_id, payroll_id";
 
 #[derive(Clone)]
@@ -62,7 +62,7 @@ where
         gender: String,
         hire_date: NaiveDate,
         termination_date: Option<NaiveDate>,
-        clasification: String,
+        classification: String,
         job_id: Uuid,
         bank_id: Uuid,
         bank_account: String,
@@ -90,7 +90,7 @@ where
         if let Some(date) = termination_date {
             payload.insert("termination_date".to_string(), json!(date.to_string()));
         }
-        payload.insert("clasification".to_string(), json!(clasification));
+        payload.insert("classification".to_string(), json!(classification));
         payload.insert("job_id".to_string(), json!(job_id.to_string()));
         payload.insert("bank_id".to_string(), json!(bank_id.to_string()));
         payload.insert("bank_account".to_string(), json!(bank_account));
@@ -173,7 +173,7 @@ struct EmployeeRecord {
     gender: String,
     hire_date: String,
     termination_date: Option<String>,
-    clasification: String,
+    classification: String,
     job_id: String,
     bank_id: String,
     bank_account: String,
@@ -212,7 +212,7 @@ fn record_to_domain(record: EmployeeRecord) -> AppResult<Employee> {
         record.gender,
         hire_date,
         termination_date,
-        record.clasification,
+        record.classification,
         job_id,
         bank_id,
         record.bank_account,
@@ -290,10 +290,10 @@ fn build_update_payload(updates: UpdateEmployeeParams) -> AppResult<JsonValue> {
             }
         }
     }
-    if let Some(clasification) = updates.clasification {
+    if let Some(classification) = updates.classification {
         object.insert(
-            "clasification".to_string(),
-            JsonValue::String(clasification),
+            "classification".to_string(),
+            JsonValue::String(classification),
         );
     }
     if let Some(job_id) = updates.job_id {

@@ -145,7 +145,7 @@ impl PayrollHistoryDetailService {
             employee_first_name: employee.first_name,
             employee_hire_date: employee.hire_date,
             employee_salary: employee.salary,
-            employee_clasification: employee.clasification,
+            employee_classification: employee.classification,
             employee_hours: employee.hours,
             employee_bank_account: employee.bank_account,
             bank_id: bank.id,

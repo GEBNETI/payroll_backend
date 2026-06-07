@@ -436,7 +436,7 @@ impl EmployeeRepository for InMemoryEmployeeRepository {
         gender: String,
         hire_date: chrono::NaiveDate,
         termination_date: Option<chrono::NaiveDate>,
-        clasification: String,
+        classification: String,
         job_id: Uuid,
         bank_id: Uuid,
         bank_account: String,
@@ -460,7 +460,7 @@ impl EmployeeRepository for InMemoryEmployeeRepository {
             gender,
             hire_date,
             termination_date,
-            clasification,
+            classification,
             job_id,
             bank_id,
             bank_account,
@@ -531,8 +531,8 @@ impl EmployeeRepository for InMemoryEmployeeRepository {
             if let Some(termination_date) = updates.termination_date {
                 existing.termination_date = termination_date;
             }
-            if let Some(clasification) = updates.clasification {
-                existing.clasification = clasification;
+            if let Some(classification) = updates.classification {
+                existing.classification = classification;
             }
             if let Some(job_id) = updates.job_id {
                 existing.job_id = job_id;

@@ -172,7 +172,7 @@ async fn create_employee(
                         "gender": "F",
                         "hire_date": hire_date.to_string(),
                         "termination_date": null,
-                        "clasification": "Full-time",
+                        "classification": "Full-time",
                         "job_id": job_id,
                         "bank_id": bank_id,
                         "bank_account": "000111222",
