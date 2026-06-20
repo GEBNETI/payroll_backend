@@ -9,4 +9,7 @@ pub mod payroll_concept_repository;
 pub mod payroll_history_detail_repository;
 pub mod payroll_history_repository;
 pub mod payroll_repository;
+pub mod role_repository;
 pub mod surreal;
+pub mod user_repository;
+pub mod user_role_assignment_repository;

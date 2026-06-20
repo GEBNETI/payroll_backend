@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::{
     domain::payroll::Payroll,
     error::{AppError, AppResult},
+    extractors::auth::AuthUser,
     server::AppState,
     services::payroll::{CreatePayrollParams, UpdatePayrollParams},
 };
@@ -82,16 +83,20 @@ impl From<UpdatePayrollRequest> for UpdatePayrollParams {
     params(OrganizationPathParams),
     request_body = CreatePayrollRequest,
     responses(
-        (status = 201, description = "Payroll created", body = PayrollResponse)
+        (status = 201, description = "Payroll created", body = PayrollResponse),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Organization manager access required"),
     ),
     tag = "Payrolls",
     operation_id = "create_payroll"
 )]
 pub async fn create(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Path(params): Path<OrganizationPathParams>,
     Json(payload): Json<CreatePayrollRequest>,
 ) -> AppResult<(StatusCode, Json<PayrollResponse>)> {
+    auth_user.require_org_write(params.organization_id)?;
     let payroll = state
         .payroll_service()
         .create(params.organization_id, payload.into())
@@ -105,13 +110,15 @@ pub async fn create(
     path = "/organizations/{organization_id}/payrolls",
     params(OrganizationPathParams),
     responses(
-        (status = 200, description = "List payrolls", body = [PayrollResponse])
+        (status = 200, description = "List payrolls", body = [PayrollResponse]),
+        (status = 401, description = "Not authenticated"),
     ),
     tag = "Payrolls",
     operation_id = "list_payrolls"
 )]
 pub async fn list(
     State(state): State<AppState>,
+    _auth_user: AuthUser,
     Path(params): Path<OrganizationPathParams>,
 ) -> AppResult<Json<Vec<PayrollResponse>>> {
     let payrolls = state.payroll_service().list(params.organization_id).await?;
@@ -125,13 +132,15 @@ pub async fn list(
     params(PayrollPathParams),
     responses(
         (status = 200, description = "Get payroll", body = PayrollResponse),
-        (status = 404, description = "Payroll not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 404, description = "Payroll not found"),
     ),
     tag = "Payrolls",
     operation_id = "get_payroll"
 )]
 pub async fn get(
     State(state): State<AppState>,
+    _auth_user: AuthUser,
     Path(params): Path<PayrollPathParams>,
 ) -> AppResult<Json<PayrollResponse>> {
     let payroll = state
@@ -155,16 +164,20 @@ pub async fn get(
     request_body = UpdatePayrollRequest,
     responses(
         (status = 200, description = "Payroll updated", body = PayrollResponse),
-        (status = 404, description = "Payroll not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Organization manager access required"),
+        (status = 404, description = "Payroll not found"),
     ),
     tag = "Payrolls",
     operation_id = "update_payroll"
 )]
 pub async fn update(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Path(params): Path<PayrollPathParams>,
     Json(payload): Json<UpdatePayrollRequest>,
 ) -> AppResult<Json<PayrollResponse>> {
+    auth_user.require_org_write(params.organization_id)?;
     let payroll = state
         .payroll_service()
         .update(params.organization_id, params.payroll_id, payload.into())
@@ -185,15 +198,19 @@ pub async fn update(
     params(PayrollPathParams),
     responses(
         (status = 204, description = "Payroll deleted"),
-        (status = 404, description = "Payroll not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Organization manager access required"),
+        (status = 404, description = "Payroll not found"),
     ),
     tag = "Payrolls",
     operation_id = "delete_payroll"
 )]
 pub async fn delete(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Path(params): Path<PayrollPathParams>,
 ) -> AppResult<StatusCode> {
+    auth_user.require_org_write(params.organization_id)?;
     let removed = state
         .payroll_service()
         .delete(params.organization_id, params.payroll_id)

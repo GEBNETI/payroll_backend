@@ -4,6 +4,18 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        crate::handlers::auth::login,
+        crate::handlers::auth::refresh,
+        crate::handlers::auth::logout,
+        crate::handlers::auth::me,
+        crate::handlers::user::create,
+        crate::handlers::user::list,
+        crate::handlers::user::get,
+        crate::handlers::user::update,
+        crate::handlers::user::delete,
+        crate::handlers::user::list_assignments,
+        crate::handlers::user::assign_role,
+        crate::handlers::user::revoke_role,
         crate::handlers::health::check,
         crate::handlers::organization::create,
         crate::handlers::organization::list,
@@ -64,6 +76,19 @@ use utoipa::OpenApi;
     ),
     components(
         schemas(
+            crate::domain::user::User,
+            crate::domain::role::Role,
+            crate::domain::permission::Permission,
+            crate::domain::user_role_assignment::UserRoleAssignment,
+            crate::handlers::auth::LoginRequest,
+            crate::handlers::auth::LoginResponse,
+            crate::handlers::auth::RefreshResponse,
+            crate::handlers::auth::UserPayload,
+            crate::handlers::user::CreateUserRequest,
+            crate::handlers::user::UpdateUserRequest,
+            crate::handlers::user::UserResponse,
+            crate::handlers::user::AssignRoleRequest,
+            crate::handlers::user::UserRoleAssignmentResponse,
             crate::domain::health::Health,
             crate::domain::organization::Organization,
             crate::domain::payroll::Payroll,
@@ -117,6 +142,8 @@ use utoipa::OpenApi;
         )
     ),
     tags(
+        (name = "Auth", description = "Authentication endpoints"),
+        (name = "Users", description = "User management"),
         (name = "Health", description = "Service health endpoints"),
         (name = "Organizations", description = "Organization management"),
         (name = "Payrolls", description = "Payroll management"),

@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::{
     domain::organization::Organization,
     error::{AppError, AppResult},
+    extractors::auth::AuthUser,
     server::AppState,
     services::organization::{CreateOrganizationParams, UpdateOrganizationParams},
 };
@@ -62,17 +63,20 @@ impl From<UpdateOrganizationRequest> for UpdateOrganizationParams {
     path = "/organizations",
     request_body = CreateOrganizationRequest,
     responses(
-        (status = 201, description = "Organization created", body = OrganizationResponse)
+        (status = 201, description = "Organization created", body = OrganizationResponse),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Superuser access required"),
     ),
     tag = "Organizations",
     operation_id = "create_organization"
 )]
 pub async fn create(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Json(payload): Json<CreateOrganizationRequest>,
 ) -> AppResult<(StatusCode, Json<OrganizationResponse>)> {
+    auth_user.require_superuser()?;
     let organization = state.organization_service().create(payload.into()).await?;
-
     Ok((StatusCode::CREATED, Json(organization.into())))
 }
 
@@ -80,12 +84,16 @@ pub async fn create(
     get,
     path = "/organizations",
     responses(
-        (status = 200, description = "List organizations", body = [OrganizationResponse])
+        (status = 200, description = "List organizations", body = [OrganizationResponse]),
+        (status = 401, description = "Not authenticated"),
     ),
     tag = "Organizations",
     operation_id = "list_organizations"
 )]
-pub async fn list(State(state): State<AppState>) -> AppResult<Json<Vec<OrganizationResponse>>> {
+pub async fn list(
+    State(state): State<AppState>,
+    _auth_user: AuthUser,
+) -> AppResult<Json<Vec<OrganizationResponse>>> {
     let organizations = state.organization_service().list().await?;
     let response = organizations
         .into_iter()
@@ -100,13 +108,15 @@ pub async fn list(State(state): State<AppState>) -> AppResult<Json<Vec<Organizat
     params(OrganizationPathParams),
     responses(
         (status = 200, description = "Get organization", body = OrganizationResponse),
-        (status = 404, description = "Organization not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 404, description = "Organization not found"),
     ),
     tag = "Organizations",
     operation_id = "get_organization"
 )]
 pub async fn get(
     State(state): State<AppState>,
+    _auth_user: AuthUser,
     Path(params): Path<OrganizationPathParams>,
 ) -> AppResult<Json<OrganizationResponse>> {
     let id = params.id;
@@ -126,16 +136,20 @@ pub async fn get(
     request_body = UpdateOrganizationRequest,
     responses(
         (status = 200, description = "Organization updated", body = OrganizationResponse),
-        (status = 404, description = "Organization not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Superuser access required"),
+        (status = 404, description = "Organization not found"),
     ),
     tag = "Organizations",
     operation_id = "update_organization"
 )]
 pub async fn update(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Path(params): Path<OrganizationPathParams>,
     Json(payload): Json<UpdateOrganizationRequest>,
 ) -> AppResult<Json<OrganizationResponse>> {
+    auth_user.require_superuser()?;
     let id = params.id;
     let organization = state
         .organization_service()
@@ -152,15 +166,19 @@ pub async fn update(
     params(OrganizationPathParams),
     responses(
         (status = 204, description = "Organization deleted"),
-        (status = 404, description = "Organization not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Superuser access required"),
+        (status = 404, description = "Organization not found"),
     ),
     tag = "Organizations",
     operation_id = "delete_organization"
 )]
 pub async fn delete(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Path(params): Path<OrganizationPathParams>,
 ) -> AppResult<StatusCode> {
+    auth_user.require_superuser()?;
     let id = params.id;
     let removed = state.organization_service().delete(id).await?;
 

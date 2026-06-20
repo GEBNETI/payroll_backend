@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::{
     domain::bank::Bank,
     error::{AppError, AppResult},
+    extractors::auth::AuthUser,
     server::AppState,
     services::bank::{CreateBankParams, UpdateBankParams},
 };
@@ -72,16 +73,20 @@ impl From<UpdateBankRequest> for UpdateBankParams {
     params(OrganizationPathParams),
     request_body = CreateBankRequest,
     responses(
-        (status = 201, description = "Bank created", body = BankResponse)
+        (status = 201, description = "Bank created", body = BankResponse),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Organization manager access required"),
     ),
     tag = "Banks",
     operation_id = "create_bank"
 )]
 pub async fn create(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Path(params): Path<OrganizationPathParams>,
     Json(payload): Json<CreateBankRequest>,
 ) -> AppResult<(StatusCode, Json<BankResponse>)> {
+    auth_user.require_org_write(params.organization_id)?;
     let bank = state
         .bank_service()
         .create(params.organization_id, payload.into())
@@ -95,13 +100,15 @@ pub async fn create(
     path = "/organizations/{organization_id}/banks",
     params(OrganizationPathParams),
     responses(
-        (status = 200, description = "List banks", body = [BankResponse])
+        (status = 200, description = "List banks", body = [BankResponse]),
+        (status = 401, description = "Not authenticated"),
     ),
     tag = "Banks",
     operation_id = "list_banks"
 )]
 pub async fn list(
     State(state): State<AppState>,
+    _auth_user: AuthUser,
     Path(params): Path<OrganizationPathParams>,
 ) -> AppResult<Json<Vec<BankResponse>>> {
     let banks = state.bank_service().list(params.organization_id).await?;
@@ -115,13 +122,15 @@ pub async fn list(
     params(BankPathParams),
     responses(
         (status = 200, description = "Get bank", body = BankResponse),
-        (status = 404, description = "Bank not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 404, description = "Bank not found"),
     ),
     tag = "Banks",
     operation_id = "get_bank"
 )]
 pub async fn get(
     State(state): State<AppState>,
+    _auth_user: AuthUser,
     Path(params): Path<BankPathParams>,
 ) -> AppResult<Json<BankResponse>> {
     let bank = state
@@ -145,16 +154,20 @@ pub async fn get(
     request_body = UpdateBankRequest,
     responses(
         (status = 200, description = "Bank updated", body = BankResponse),
-        (status = 404, description = "Bank not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Organization manager access required"),
+        (status = 404, description = "Bank not found"),
     ),
     tag = "Banks",
     operation_id = "update_bank"
 )]
 pub async fn update(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Path(params): Path<BankPathParams>,
     Json(payload): Json<UpdateBankRequest>,
 ) -> AppResult<Json<BankResponse>> {
+    auth_user.require_org_write(params.organization_id)?;
     let bank = state
         .bank_service()
         .update(params.organization_id, params.bank_id, payload.into())
@@ -175,15 +188,19 @@ pub async fn update(
     params(BankPathParams),
     responses(
         (status = 204, description = "Bank deleted"),
-        (status = 404, description = "Bank not found")
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Organization manager access required"),
+        (status = 404, description = "Bank not found"),
     ),
     tag = "Banks",
     operation_id = "delete_bank"
 )]
 pub async fn delete(
     State(state): State<AppState>,
+    auth_user: AuthUser,
     Path(params): Path<BankPathParams>,
 ) -> AppResult<StatusCode> {
+    auth_user.require_org_write(params.organization_id)?;
     let removed = state
         .bank_service()
         .delete(params.organization_id, params.bank_id)

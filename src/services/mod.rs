@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod bank;
 pub mod division;
 pub mod employee;
@@ -10,3 +11,6 @@ pub mod payroll_concept;
 pub mod payroll_concept_definition;
 pub mod payroll_history;
 pub mod payroll_history_detail;
+pub mod role;
+pub mod user;
+pub mod user_role_assignment;

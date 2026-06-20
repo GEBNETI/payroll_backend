@@ -18,10 +18,14 @@ use crate::{
         payroll_history_detail_repository::SurrealAnyPayrollHistoryDetailRepository,
         payroll_history_repository::SurrealAnyPayrollHistoryRepository,
         payroll_repository::SurrealAnyPayrollRepository,
+        role_repository::SurrealAnyRoleRepository,
         surreal::{self, SurrealConfig, SurrealConfigError},
+        user_repository::SurrealAnyUserRepository,
+        user_role_assignment_repository::SurrealAnyUserRoleAssignmentRepository,
     },
     routes,
     services::{
+        auth::{AuthService, JwtConfig},
         bank::{BankRepository, BankService},
         division::{DivisionRepository, DivisionService},
         employee::{EmployeeRepository, EmployeeService},
@@ -38,6 +42,11 @@ use crate::{
         },
         payroll_history::{PayrollHistoryRepository, PayrollHistoryService},
         payroll_history_detail::{PayrollHistoryDetailRepository, PayrollHistoryDetailService},
+        role::{RoleRepository, RoleService},
+        user::{InsertUserParams, UserRepository, UserService},
+        user_role_assignment::{
+            AssignRoleParams, UserRoleAssignmentRepository, UserRoleAssignmentService,
+        },
     },
 };
 
@@ -68,6 +77,10 @@ pub struct AppState {
     payroll_history_service: Arc<PayrollHistoryService>,
     payroll_history_detail_service: Arc<PayrollHistoryDetailService>,
     payroll_calculator_service: Arc<PayrollCalculatorService>,
+    user_service: Arc<UserService>,
+    role_service: Arc<RoleService>,
+    user_role_assignment_service: Arc<UserRoleAssignmentService>,
+    auth_service: Arc<AuthService>,
 }
 
 impl AppState {
@@ -123,10 +136,112 @@ impl AppState {
         Arc::clone(&self.payroll_calculator_service)
     }
 
+    pub fn user_service(&self) -> Arc<UserService> {
+        Arc::clone(&self.user_service)
+    }
+
+    pub fn role_service(&self) -> Arc<RoleService> {
+        Arc::clone(&self.role_service)
+    }
+
+    pub fn user_role_assignment_service(&self) -> Arc<UserRoleAssignmentService> {
+        Arc::clone(&self.user_role_assignment_service)
+    }
+
+    pub fn auth_service(&self) -> Arc<AuthService> {
+        Arc::clone(&self.auth_service)
+    }
+
     pub async fn initialize() -> Result<Self, ServerSetupError> {
         let config = SurrealConfig::from_env()?;
         let client = surreal::connect(&config).await?;
-        Ok(Self::builder().with_surreal_repositories(client).build())
+        let jwt_config = JwtConfig::from_env().map_err(ServerSetupError::Init)?;
+        let state = Self::builder()
+            .with_surreal_repositories(client)
+            .with_jwt_config(jwt_config)
+            .build();
+        state.seed_initial_data().await?;
+        Ok(state)
+    }
+
+    async fn seed_initial_data(&self) -> Result<(), ServerSetupError> {
+        use crate::domain::role::{
+            ORGANIZATION_MANAGER_ROLE, PAYROLL_REPORT_ROLE, PAYROLL_USER_ROLE, SUPERUSER_ROLE,
+        };
+
+        self.role_service()
+            .get_or_create(SUPERUSER_ROLE)
+            .await
+            .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
+        self.role_service()
+            .get_or_create(ORGANIZATION_MANAGER_ROLE)
+            .await
+            .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
+        self.role_service()
+            .get_or_create(PAYROLL_USER_ROLE)
+            .await
+            .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
+        self.role_service()
+            .get_or_create(PAYROLL_REPORT_ROLE)
+            .await
+            .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
+
+        let root_username =
+            std::env::var("ROOT_USERNAME").unwrap_or_else(|_| "root".to_string());
+
+        if self
+            .user_service()
+            .get_by_username(&root_username)
+            .await
+            .map_err(|e| ServerSetupError::Seed(e.to_string()))?
+            .is_none()
+        {
+            let root_password = std::env::var("ROOT_PASSWORD")
+                .map_err(|_| {
+                    ServerSetupError::Seed("ROOT_PASSWORD environment variable not set".to_string())
+                })?;
+
+            let password_hash = AuthService::hash_password(&root_password)
+                .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
+
+            let root_user = self
+                .user_service()
+                .create(InsertUserParams {
+                    username: root_username,
+                    email: "root@localhost".to_string(),
+                    password_hash,
+                    name: "Root".to_string(),
+                })
+                .await
+                .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
+
+            let superuser_role = self
+                .role_service()
+                .get_by_name(SUPERUSER_ROLE)
+                .await
+                .map_err(|e| ServerSetupError::Seed(e.to_string()))?
+                .ok_or_else(|| {
+                    ServerSetupError::Seed(
+                        "Superuser role not found after creation".to_string(),
+                    )
+                })?;
+
+            self.user_role_assignment_service()
+                .assign(AssignRoleParams {
+                    user_id: root_user.id,
+                    role_id: superuser_role.id,
+                    role_name: superuser_role.name,
+                    organization_id: None,
+                    payroll_id: None,
+                    payroll_name: None,
+                })
+                .await
+                .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
+
+            tracing::info!("root user created successfully");
+        }
+
+        Ok(())
     }
 }
 
@@ -147,6 +262,10 @@ pub struct AppStateBuilder {
     employee_payroll_concept_repository: Option<Arc<dyn EmployeePayrollConceptRepository>>,
     payroll_history_repository: Option<Arc<dyn PayrollHistoryRepository>>,
     payroll_history_detail_repository: Option<Arc<dyn PayrollHistoryDetailRepository>>,
+    user_repository: Option<Arc<dyn UserRepository>>,
+    role_repository: Option<Arc<dyn RoleRepository>>,
+    user_role_assignment_repository: Option<Arc<dyn UserRoleAssignmentRepository>>,
+    jwt_config: Option<JwtConfig>,
 }
 
 impl AppStateBuilder {
@@ -175,8 +294,20 @@ impl AppStateBuilder {
             client.clone(),
         )));
         self.payroll_history_detail_repository = Some(Arc::new(
-            SurrealAnyPayrollHistoryDetailRepository::new(client),
+            SurrealAnyPayrollHistoryDetailRepository::new(client.clone()),
         ));
+        self.user_repository =
+            Some(Arc::new(SurrealAnyUserRepository::new(client.clone())));
+        self.role_repository =
+            Some(Arc::new(SurrealAnyRoleRepository::new(client.clone())));
+        self.user_role_assignment_repository = Some(Arc::new(
+            SurrealAnyUserRoleAssignmentRepository::new(client),
+        ));
+        self
+    }
+
+    pub fn with_jwt_config(mut self, config: JwtConfig) -> Self {
+        self.jwt_config = Some(config);
         self
     }
 
@@ -250,11 +381,29 @@ impl AppStateBuilder {
         self
     }
 
+    pub fn with_user_repository(mut self, repo: Arc<dyn UserRepository>) -> Self {
+        self.user_repository = Some(repo);
+        self
+    }
+
+    pub fn with_role_repository(mut self, repo: Arc<dyn RoleRepository>) -> Self {
+        self.role_repository = Some(repo);
+        self
+    }
+
+    pub fn with_user_role_assignment_repository(
+        mut self,
+        repo: Arc<dyn UserRoleAssignmentRepository>,
+    ) -> Self {
+        self.user_role_assignment_repository = Some(repo);
+        self
+    }
+
     /// Build the `AppState`, wiring all services with their dependencies.
     ///
     /// # Panics
     ///
-    /// Panics if any repository is not set.
+    /// Panics if any required repository or config is not set.
     pub fn build(self) -> AppState {
         // Extract repositories (panic if missing)
         let organization_repository = self
@@ -286,6 +435,16 @@ impl AppStateBuilder {
         let payroll_history_detail_repository = self
             .payroll_history_detail_repository
             .expect("payroll_history_detail_repository is required");
+        let user_repository = self
+            .user_repository
+            .expect("user_repository is required");
+        let role_repository = self
+            .role_repository
+            .expect("role_repository is required");
+        let user_role_assignment_repository = self
+            .user_role_assignment_repository
+            .expect("user_role_assignment_repository is required");
+        let jwt_config = self.jwt_config.expect("jwt_config is required");
 
         // Build services in dependency order
         let organization_service = Arc::new(OrganizationService::new(organization_repository));
@@ -361,6 +520,12 @@ impl AppStateBuilder {
             Arc::clone(&job_service),
         ));
 
+        let user_service = Arc::new(UserService::new(user_repository));
+        let role_service = Arc::new(RoleService::new(role_repository));
+        let user_role_assignment_service =
+            Arc::new(UserRoleAssignmentService::new(user_role_assignment_repository));
+        let auth_service = Arc::new(AuthService::new(jwt_config, Arc::clone(&user_service)));
+
         AppState {
             organization_service,
             payroll_service,
@@ -374,6 +539,10 @@ impl AppStateBuilder {
             payroll_history_service,
             payroll_history_detail_service,
             payroll_calculator_service,
+            user_service,
+            role_service,
+            user_role_assignment_service,
+            auth_service,
         }
     }
 }
@@ -384,4 +553,8 @@ pub enum ServerSetupError {
     Config(#[from] SurrealConfigError),
     #[error(transparent)]
     Database(#[from] surrealdb::Error),
+    #[error("initialization error: {0}")]
+    Init(String),
+    #[error("seed error: {0}")]
+    Seed(String),
 }

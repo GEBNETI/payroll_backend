@@ -24,6 +24,9 @@ utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tower-http = { version = "0.6", features = ["trace", "cors"] }
+jsonwebtoken = "9"
+argon2 = "0.5"
+axum-extra = { version = "0.10", features = ["cookie"] }
 
 [dev-dependencies]
 http-body-util = "0.1"

@@ -18,6 +18,10 @@ pub enum AppError {
     Database { message: String },
     #[error("internal server error: {message}")]
     Internal { message: String },
+    #[error("unauthorized: {message}")]
+    Unauthorized { message: String },
+    #[error("forbidden: {message}")]
+    Forbidden { message: String },
 }
 
 impl AppError {
@@ -47,6 +51,18 @@ impl AppError {
 
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
+            message: message.into(),
+        }
+    }
+
+    pub fn unauthorized(message: impl Into<String>) -> Self {
+        Self::Unauthorized {
+            message: message.into(),
+        }
+    }
+
+    pub fn forbidden(message: impl Into<String>) -> Self {
+        Self::Forbidden {
             message: message.into(),
         }
     }
@@ -103,6 +119,8 @@ impl IntoResponse for AppError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("internal server error: {message}"),
             ),
+            AppError::Unauthorized { message } => (StatusCode::UNAUTHORIZED, message.clone()),
+            AppError::Forbidden { message } => (StatusCode::FORBIDDEN, message.clone()),
         };
 
         let body = Json(ErrorBody { error: message });
