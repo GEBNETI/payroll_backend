@@ -104,6 +104,40 @@ where
         }
     }
 
+    async fn fetch_for_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
+        let query =
+            format!("{SELECT_FIELDS} FROM user_role_assignment WHERE payroll_id = $payroll_id");
+        let mut response = self
+            .client
+            .query(query)
+            .bind(("payroll_id", payroll_id.to_string()))
+            .await?;
+
+        let result: Result<Vec<AssignmentRecord>, _> = response.take(0);
+        match result {
+            Ok(records) => records.into_iter().map(record_to_domain).collect(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(vec![]),
+            Err(e) => Err(AppError::from(e)),
+        }
+    }
+
+    async fn fetch_for_org(&self, org_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
+        let query =
+            format!("{SELECT_FIELDS} FROM user_role_assignment WHERE organization_id = $org_id");
+        let mut response = self
+            .client
+            .query(query)
+            .bind(("org_id", org_id.to_string()))
+            .await?;
+
+        let result: Result<Vec<AssignmentRecord>, _> = response.take(0);
+        match result {
+            Ok(records) => records.into_iter().map(record_to_domain).collect(),
+            Err(e) if e.to_string().contains("does not exist") => Ok(vec![]),
+            Err(e) => Err(AppError::from(e)),
+        }
+    }
+
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
         let record: Option<JsonValue> = self
             .client

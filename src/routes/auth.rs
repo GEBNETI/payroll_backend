@@ -11,4 +11,5 @@ pub fn router() -> Router<AppState> {
         .route("/auth/refresh", post(auth::refresh))
         .route("/auth/logout", post(auth::logout))
         .route("/auth/me", get(auth::me))
+        .route("/auth/assignments", get(auth::my_assignments))
 }

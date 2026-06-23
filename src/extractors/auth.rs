@@ -23,6 +23,22 @@ pub struct AuthUser {
 }
 
 impl AuthUser {
+    pub fn is_org_manager(&self) -> bool {
+        self.is_superuser
+            || self
+                .assignments
+                .iter()
+                .any(|a| a.role_name == ORGANIZATION_MANAGER_ROLE)
+    }
+
+    pub fn managed_org_ids(&self) -> Vec<Uuid> {
+        self.assignments
+            .iter()
+            .filter(|a| a.role_name == ORGANIZATION_MANAGER_ROLE)
+            .filter_map(|a| a.organization_id)
+            .collect()
+    }
+
     pub fn require_superuser(&self) -> AppResult<()> {
         if self.is_superuser {
             Ok(())

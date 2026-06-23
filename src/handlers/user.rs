@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -102,6 +104,57 @@ impl From<UserRoleAssignment> for UserRoleAssignmentResponse {
     }
 }
 
+/// Collects all user IDs visible to the given org manager across all their managed orgs.
+/// Includes users with:
+/// - an org-scoped assignment (organization_id in managed orgs), OR
+/// - a payroll-scoped assignment for any payroll belonging to a managed org
+async fn visible_user_ids_for_org_manager(
+    managed: &[Uuid],
+    state: &AppState,
+) -> AppResult<HashSet<Uuid>> {
+    let mut ids: HashSet<Uuid> = HashSet::new();
+
+    for &org_id in managed {
+        // Org-scoped assignments (OrganizationManager stored with organization_id)
+        for a in state.user_role_assignment_service().list_for_org(org_id).await? {
+            ids.insert(a.user_id);
+        }
+        // Payroll-scoped assignments (PayrollUser/PayrollReport stored with payroll_id)
+        let payrolls = state.payroll_service().list(org_id).await?;
+        for payroll in payrolls {
+            for a in state.user_role_assignment_service().list_for_payroll(payroll.id).await? {
+                ids.insert(a.user_id);
+            }
+        }
+    }
+
+    Ok(ids)
+}
+
+/// Returns true if the requesting org manager can access the given user.
+/// An org manager can access a user if:
+/// - the user is visible via their org or payroll assignments, OR
+/// - the user has no assignments at all (newly created, awaiting assignment)
+async fn org_manager_can_access_user(
+    auth_user: &AuthUser,
+    user_id: Uuid,
+    state: &AppState,
+) -> AppResult<bool> {
+    let managed = auth_user.managed_org_ids();
+    if managed.is_empty() {
+        return Ok(false);
+    }
+    let user_assignments = state
+        .user_role_assignment_service()
+        .list_for_user(user_id)
+        .await?;
+    if user_assignments.is_empty() {
+        return Ok(true);
+    }
+    let visible = visible_user_ids_for_org_manager(&managed, state).await?;
+    Ok(visible.contains(&user_id))
+}
+
 #[utoipa::path(
     post,
     path = "/users",
@@ -109,7 +162,7 @@ impl From<UserRoleAssignment> for UserRoleAssignmentResponse {
     responses(
         (status = 201, description = "User created", body = UserResponse),
         (status = 401, description = "Not authenticated"),
-        (status = 403, description = "Superuser access required"),
+        (status = 403, description = "Superuser or OrganizationManager access required"),
     ),
     tag = "Users",
     operation_id = "create_user"
@@ -119,7 +172,9 @@ pub async fn create(
     auth_user: AuthUser,
     Json(payload): Json<CreateUserRequest>,
 ) -> AppResult<(StatusCode, Json<UserResponse>)> {
-    auth_user.require_superuser()?;
+    if !auth_user.is_org_manager() {
+        return Err(AppError::forbidden("superuser or organization manager access required"));
+    }
 
     let password_hash = AuthService::hash_password(&payload.password)?;
     let user = state
@@ -141,7 +196,7 @@ pub async fn create(
     responses(
         (status = 200, description = "List users", body = [UserResponse]),
         (status = 401, description = "Not authenticated"),
-        (status = 403, description = "Superuser access required"),
+        (status = 403, description = "Superuser or OrganizationManager access required"),
     ),
     tag = "Users",
     operation_id = "list_users"
@@ -150,10 +205,25 @@ pub async fn list(
     State(state): State<AppState>,
     auth_user: AuthUser,
 ) -> AppResult<Json<Vec<UserResponse>>> {
-    auth_user.require_superuser()?;
+    if auth_user.is_superuser {
+        let users = state.user_service().list().await?;
+        return Ok(Json(users.into_iter().map(UserResponse::from).collect()));
+    }
 
-    let users = state.user_service().list().await?;
-    Ok(Json(users.into_iter().map(UserResponse::from).collect()))
+    let managed = auth_user.managed_org_ids();
+    if managed.is_empty() {
+        return Err(AppError::forbidden("superuser or organization manager access required"));
+    }
+
+    let visible_user_ids = visible_user_ids_for_org_manager(&managed, &state).await?;
+
+    let all_users = state.user_service().list().await?;
+    let filtered: Vec<_> = all_users
+        .into_iter()
+        .filter(|u| visible_user_ids.contains(&u.id))
+        .collect();
+
+    Ok(Json(filtered.into_iter().map(UserResponse::from).collect()))
 }
 
 #[utoipa::path(
@@ -163,7 +233,7 @@ pub async fn list(
     responses(
         (status = 200, description = "Get user", body = UserResponse),
         (status = 401, description = "Not authenticated"),
-        (status = 403, description = "Superuser access required"),
+        (status = 403, description = "Superuser or OrganizationManager access required"),
         (status = 404, description = "User not found"),
     ),
     tag = "Users",
@@ -174,7 +244,9 @@ pub async fn get(
     auth_user: AuthUser,
     Path(params): Path<UserPathParams>,
 ) -> AppResult<Json<UserResponse>> {
-    auth_user.require_superuser()?;
+    if !auth_user.is_superuser && !org_manager_can_access_user(&auth_user, params.id, &state).await? {
+        return Err(AppError::forbidden("access to this user is not permitted"));
+    }
 
     let user = state
         .user_service()
@@ -193,7 +265,7 @@ pub async fn get(
     responses(
         (status = 200, description = "User updated", body = UserResponse),
         (status = 401, description = "Not authenticated"),
-        (status = 403, description = "Superuser access required"),
+        (status = 403, description = "Superuser or OrganizationManager access required"),
         (status = 404, description = "User not found"),
     ),
     tag = "Users",
@@ -205,7 +277,9 @@ pub async fn update(
     Path(params): Path<UserPathParams>,
     Json(payload): Json<UpdateUserRequest>,
 ) -> AppResult<Json<UserResponse>> {
-    auth_user.require_superuser()?;
+    if !auth_user.is_superuser && !org_manager_can_access_user(&auth_user, params.id, &state).await? {
+        return Err(AppError::forbidden("access to this user is not permitted"));
+    }
 
     let password_hash = payload
         .password
@@ -268,7 +342,7 @@ pub async fn delete(
     responses(
         (status = 200, description = "List role assignments for user", body = [UserRoleAssignmentResponse]),
         (status = 401, description = "Not authenticated"),
-        (status = 403, description = "Superuser access required"),
+        (status = 403, description = "Superuser or OrganizationManager access required"),
     ),
     tag = "Users",
     operation_id = "list_user_assignments"
@@ -278,7 +352,9 @@ pub async fn list_assignments(
     auth_user: AuthUser,
     Path(params): Path<UserPathParams>,
 ) -> AppResult<Json<Vec<UserRoleAssignmentResponse>>> {
-    auth_user.require_superuser()?;
+    if !auth_user.is_superuser && !org_manager_can_access_user(&auth_user, params.id, &state).await? {
+        return Err(AppError::forbidden("access to this user is not permitted"));
+    }
 
     let assignments = state
         .user_role_assignment_service()
@@ -301,7 +377,7 @@ pub async fn list_assignments(
     responses(
         (status = 201, description = "Role assigned", body = UserRoleAssignmentResponse),
         (status = 401, description = "Not authenticated"),
-        (status = 403, description = "Superuser access required"),
+        (status = 403, description = "Superuser or OrganizationManager access required"),
         (status = 404, description = "Role not found"),
     ),
     tag = "Users",
@@ -313,7 +389,20 @@ pub async fn assign_role(
     Path(params): Path<UserPathParams>,
     Json(payload): Json<AssignRoleRequest>,
 ) -> AppResult<(StatusCode, Json<UserRoleAssignmentResponse>)> {
-    auth_user.require_superuser()?;
+    if !auth_user.is_superuser {
+        let managed = auth_user.managed_org_ids();
+        if managed.is_empty() {
+            return Err(AppError::forbidden("superuser or organization manager access required"));
+        }
+        // Org managers can only assign roles scoped to their own orgs
+        match payload.organization_id {
+            Some(org_id) if managed.contains(&org_id) => {}
+            _ => return Err(AppError::forbidden("org managers can only assign roles within their managed organizations")),
+        }
+        if !org_manager_can_access_user(&auth_user, params.id, &state).await? {
+            return Err(AppError::forbidden("access to this user is not permitted"));
+        }
+    }
 
     let role = state
         .role_service()
@@ -343,7 +432,7 @@ pub async fn assign_role(
     responses(
         (status = 204, description = "Assignment removed"),
         (status = 401, description = "Not authenticated"),
-        (status = 403, description = "Superuser access required"),
+        (status = 403, description = "Superuser or OrganizationManager access required"),
         (status = 404, description = "Assignment not found"),
     ),
     tag = "Users",
@@ -354,7 +443,22 @@ pub async fn revoke_role(
     auth_user: AuthUser,
     Path(params): Path<AssignmentPathParams>,
 ) -> AppResult<StatusCode> {
-    auth_user.require_superuser()?;
+    if !auth_user.is_superuser {
+        let managed = auth_user.managed_org_ids();
+        if managed.is_empty() {
+            return Err(AppError::forbidden("superuser or organization manager access required"));
+        }
+        // Verify the assignment belongs to one of the manager's orgs
+        let assignment = state
+            .user_role_assignment_service()
+            .get(params.assignment_id)
+            .await?
+            .ok_or_else(|| AppError::not_found(format!("assignment `{}` not found", params.assignment_id)))?;
+        match assignment.organization_id {
+            Some(org_id) if managed.contains(&org_id) => {}
+            _ => return Err(AppError::forbidden("org managers can only revoke assignments within their managed organizations")),
+        }
+    }
 
     let removed = state
         .user_role_assignment_service()

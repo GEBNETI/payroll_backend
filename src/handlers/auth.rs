@@ -3,6 +3,7 @@ use axum::{
     http::{header, HeaderMap, StatusCode},
     Json,
 };
+use crate::handlers::user::UserRoleAssignmentResponse;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -189,6 +190,32 @@ pub async fn me(auth_user: AuthUser) -> AppResult<Json<UserPayload>> {
         is_active: true,
         is_superuser: auth_user.is_superuser,
     }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/auth/assignments",
+    responses(
+        (status = 200, description = "Current user's role assignments", body = [UserRoleAssignmentResponse]),
+        (status = 401, description = "Not authenticated"),
+    ),
+    tag = "Auth",
+    operation_id = "auth_assignments"
+)]
+pub async fn my_assignments(
+    State(state): State<AppState>,
+    auth_user: AuthUser,
+) -> AppResult<Json<Vec<UserRoleAssignmentResponse>>> {
+    let assignments = state
+        .user_role_assignment_service()
+        .list_for_user(auth_user.user_id)
+        .await?;
+    Ok(Json(
+        assignments
+            .into_iter()
+            .map(UserRoleAssignmentResponse::from)
+            .collect(),
+    ))
 }
 
 fn extract_refresh_token(headers: &HeaderMap) -> AppResult<&str> {

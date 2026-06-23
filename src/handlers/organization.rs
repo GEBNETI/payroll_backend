@@ -92,14 +92,28 @@ pub async fn create(
 )]
 pub async fn list(
     State(state): State<AppState>,
-    _auth_user: AuthUser,
+    auth_user: AuthUser,
 ) -> AppResult<Json<Vec<OrganizationResponse>>> {
     let organizations = state.organization_service().list().await?;
-    let response = organizations
+
+    if auth_user.is_superuser {
+        return Ok(Json(organizations.into_iter().map(OrganizationResponse::from).collect()));
+    }
+
+    // Non-superusers see only organizations they have an assignment in
+    let accessible_org_ids: std::collections::HashSet<Uuid> = auth_user
+        .assignments
+        .iter()
+        .filter_map(|a| a.organization_id)
+        .collect();
+
+    let filtered = organizations
         .into_iter()
+        .filter(|o| accessible_org_ids.contains(&o.id))
         .map(OrganizationResponse::from)
         .collect();
-    Ok(Json(response))
+
+    Ok(Json(filtered))
 }
 
 #[utoipa::path(

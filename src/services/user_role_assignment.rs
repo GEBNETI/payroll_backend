@@ -20,6 +20,8 @@ pub trait UserRoleAssignmentRepository: Send + Sync {
     async fn insert(&self, id: Uuid, params: AssignRoleParams) -> AppResult<UserRoleAssignment>;
     async fn fetch(&self, id: Uuid) -> AppResult<Option<UserRoleAssignment>>;
     async fn fetch_for_user(&self, user_id: Uuid) -> AppResult<Vec<UserRoleAssignment>>;
+    async fn fetch_for_org(&self, org_id: Uuid) -> AppResult<Vec<UserRoleAssignment>>;
+    async fn fetch_for_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<UserRoleAssignment>>;
     async fn delete(&self, id: Uuid) -> AppResult<bool>;
 }
 
@@ -44,6 +46,14 @@ impl UserRoleAssignmentService {
 
     pub async fn list_for_user(&self, user_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
         self.repository.fetch_for_user(user_id).await
+    }
+
+    pub async fn list_for_org(&self, org_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
+        self.repository.fetch_for_org(org_id).await
+    }
+
+    pub async fn list_for_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
+        self.repository.fetch_for_payroll(payroll_id).await
     }
 
     pub async fn revoke(&self, id: Uuid) -> AppResult<bool> {
