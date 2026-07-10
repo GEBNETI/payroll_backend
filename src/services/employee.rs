@@ -26,12 +26,12 @@ pub struct CreateEmployeeParams {
     pub gender: String,
     pub hire_date: NaiveDate,
     pub termination_date: Option<NaiveDate>,
-    pub clasification: String,
+    pub clasification: Option<String>,
     pub job_id: Uuid,
     pub bank_id: Uuid,
     pub bank_account: String,
     pub status: String,
-    pub hours: i32,
+    pub hours: Option<i32>,
     pub salary: f64,
 }
 
@@ -153,10 +153,20 @@ impl EmployeeService {
         let nationality = Self::normalize_field(&params.nationality, "nationality")?;
         let marital_status = Self::normalize_field(&params.marital_status, "marital status")?;
         let gender = Self::normalize_field(&params.gender, "gender")?;
-        let clasification = Self::normalize_field(&params.clasification, "clasification")?;
+        let clasification = params
+            .clasification
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or_default()
+            .to_string();
         let bank_account = Self::normalize_field(&params.bank_account, "bank account")?;
         let status = Self::normalize_field(&params.status, "status")?;
-        let hours = Self::validate_hours(params.hours)?;
+        let hours = params
+            .hours
+            .map(Self::validate_hours)
+            .transpose()?
+            .unwrap_or_default();
         let salary = Self::validate_salary(params.salary)?;
         let hire_date = params.hire_date;
         let termination_date = Self::validate_termination_date(hire_date, params.termination_date)?;

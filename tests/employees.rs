@@ -204,6 +204,51 @@ async fn can_create_and_list_employees() {
 }
 
 #[tokio::test]
+async fn can_create_employee_without_clasification_or_hours() {
+    let app = support::test_router();
+    let organization_id = create_organization(&app).await;
+    let payroll_id = create_payroll(&app, organization_id).await;
+    let bank_id = create_bank(&app, organization_id, "Optional Fields Bank").await;
+    let job_id = create_job(&app, organization_id, payroll_id, "Analyst").await;
+    let division_id = create_division(&app, organization_id, payroll_id, "Ops").await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees"))
+                .header("content-type", "application/json")
+                .body(Body::from(json!({
+                    "id_number": "123-456",
+                    "last_name": "Doe",
+                    "first_name": "Jane",
+                    "address": "123 Main St",
+                    "phone": "555-1111",
+                    "place_of_birth": "Townsville",
+                    "date_of_birth": "1990-01-01",
+                    "nationality": "Exampleland",
+                    "marital_status": "Single",
+                    "gender": "F",
+                    "hire_date": "2020-01-01",
+                    "job_id": job_id,
+                    "bank_id": bank_id,
+                    "bank_account": "ACC123",
+                    "status": "Active",
+                    "salary": 55000.0
+                }).to_string()))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let created = read_json(response.into_body().collect().await.unwrap().to_bytes());
+    assert_eq!(created["clasification"], "");
+    assert_eq!(created["hours"], 0);
+}
+
+#[tokio::test]
 async fn rejects_invalid_references_and_dates() {
     let app = support::test_router();
     let organization_id = create_organization(&app).await;

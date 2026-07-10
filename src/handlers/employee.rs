@@ -32,12 +32,12 @@ pub struct CreateEmployeeRequest {
     pub hire_date: NaiveDate,
     #[schema(value_type = Option<String>, format = Date)]
     pub termination_date: Option<NaiveDate>,
-    pub clasification: String,
+    pub clasification: Option<String>,
     pub job_id: Uuid,
     pub bank_id: Uuid,
     pub bank_account: String,
     pub status: String,
-    pub hours: i32,
+    pub hours: Option<i32>,
     pub salary: f64,
 }
 
