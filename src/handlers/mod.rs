@@ -13,4 +13,5 @@ pub mod payroll_concept;
 pub mod payroll_concept_definition;
 pub mod payroll_history;
 pub mod payroll_history_detail;
+pub mod payroll_history_report;
 pub mod user;

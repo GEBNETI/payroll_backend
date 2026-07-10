@@ -75,6 +75,8 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/details` | List details for a payroll history entry |
 | GET    | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/details/:detail_id` | Fetch payroll history detail |
 | DELETE | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/details/:detail_id` | Delete payroll history detail |
+| GET | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/reports/earnings-deductions` | Earnings/deductions report grouped by concept and employee |
+| GET | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/reports/payroll` | Payroll report grouped by division, sub-division, and employee |
 
 ## API Documentation
 

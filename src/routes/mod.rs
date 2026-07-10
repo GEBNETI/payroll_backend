@@ -1,5 +1,5 @@
 use axum::{
-    http::{header, HeaderValue, Method},
+    http::{header, Method},
     Router,
 };
 use tower_http::{
@@ -27,23 +27,15 @@ pub mod payroll_concept;
 pub mod payroll_concept_definition;
 pub mod payroll_history;
 pub mod payroll_history_detail;
+pub mod payroll_history_report;
 pub mod user;
 
 fn build_cors() -> CorsLayer {
-    let allow_origin = match std::env::var("CORS_ALLOWED_ORIGINS") {
-        Ok(origins) => {
-            let parsed: Vec<HeaderValue> = origins
-                .split(',')
-                .filter_map(|o| o.trim().parse().ok())
-                .collect();
-            AllowOrigin::list(parsed)
-        }
-        // When no env var is set, mirror the request origin so credentials work in dev
-        Err(_) => AllowOrigin::mirror_request(),
-    };
-
     CorsLayer::new()
-        .allow_origin(allow_origin)
+        // A credentialed browser request cannot use `Access-Control-Allow-Origin: *`.
+        // Mirroring the request origin provides the equivalent any-origin behavior while
+        // allowing the refresh-token cookie to be sent from every frontend deployment.
+        .allow_origin(AllowOrigin::mirror_request())
         .allow_methods([
             Method::GET,
             Method::POST,
@@ -79,6 +71,7 @@ pub fn app_router(state: AppState) -> Router {
         .merge(employee::router())
         .merge(payroll_history::router())
         .merge(payroll_history_detail::router())
+        .merge(payroll_history_report::router())
         .merge(payroll_calculator::router())
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi))
         .layer(build_cors())
@@ -89,4 +82,54 @@ pub fn app_router(state: AppState) -> Router {
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::{
+        body::Body,
+        http::{header, Request, StatusCode},
+        routing::post,
+        Router,
+    };
+    use tower::ServiceExt;
+
+    use super::build_cors;
+
+    #[tokio::test]
+    async fn cors_mirrors_any_origin_for_credentialed_preflight_requests() {
+        let app = Router::new()
+            .route("/auth/refresh", post(|| async { StatusCode::OK }))
+            .layer(build_cors());
+        let origin = "https://payroll.velociraptor-reedfish.ts.net";
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("OPTIONS")
+                    .uri("/auth/refresh")
+                    .header(header::ORIGIN, origin)
+                    .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                    .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|value| value.to_str().ok()),
+            Some(origin)
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .and_then(|value| value.to_str().ok()),
+            Some("true")
+        );
+    }
 }

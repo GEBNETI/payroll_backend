@@ -42,6 +42,7 @@ use crate::{
         },
         payroll_history::{PayrollHistoryRepository, PayrollHistoryService},
         payroll_history_detail::{PayrollHistoryDetailRepository, PayrollHistoryDetailService},
+        payroll_history_report::PayrollHistoryReportService,
         role::{RoleRepository, RoleService},
         user::{InsertUserParams, UserRepository, UserService},
         user_role_assignment::{
@@ -76,6 +77,7 @@ pub struct AppState {
     employee_service: Arc<EmployeeService>,
     payroll_history_service: Arc<PayrollHistoryService>,
     payroll_history_detail_service: Arc<PayrollHistoryDetailService>,
+    payroll_history_report_service: Arc<PayrollHistoryReportService>,
     payroll_calculator_service: Arc<PayrollCalculatorService>,
     user_service: Arc<UserService>,
     role_service: Arc<RoleService>,
@@ -130,6 +132,10 @@ impl AppState {
 
     pub fn payroll_history_detail_service(&self) -> Arc<PayrollHistoryDetailService> {
         Arc::clone(&self.payroll_history_detail_service)
+    }
+
+    pub fn payroll_history_report_service(&self) -> Arc<PayrollHistoryReportService> {
+        Arc::clone(&self.payroll_history_report_service)
     }
 
     pub fn payroll_calculator_service(&self) -> Arc<PayrollCalculatorService> {
@@ -509,6 +515,12 @@ impl AppStateBuilder {
             Arc::clone(&payroll_concept_service),
         ));
 
+        let payroll_history_report_service = Arc::new(PayrollHistoryReportService::new(
+            Arc::clone(&payroll_history_service),
+            Arc::clone(&payroll_history_detail_service),
+            Arc::clone(&division_service),
+        ));
+
         let payroll_calculator_service = Arc::new(PayrollCalculatorService::new(
             Arc::clone(&payroll_history_service),
             Arc::clone(&payroll_history_detail_service),
@@ -538,6 +550,7 @@ impl AppStateBuilder {
             employee_service,
             payroll_history_service,
             payroll_history_detail_service,
+            payroll_history_report_service,
             payroll_calculator_service,
             user_service,
             role_service,
