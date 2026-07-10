@@ -18,17 +18,20 @@ use crate::{
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateOrganizationRequest {
     pub name: String,
+    pub rif: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateOrganizationRequest {
     pub name: Option<String>,
+    pub rif: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct OrganizationResponse {
     pub id: Uuid,
     pub name: String,
+    pub rif: String,
 }
 
 #[derive(Debug, Deserialize, IntoParams)]
@@ -42,19 +45,26 @@ impl From<Organization> for OrganizationResponse {
         Self {
             id: value.id,
             name: value.name,
+            rif: value.rif,
         }
     }
 }
 
 impl From<CreateOrganizationRequest> for CreateOrganizationParams {
     fn from(req: CreateOrganizationRequest) -> Self {
-        Self { name: req.name }
+        Self {
+            name: req.name,
+            rif: req.rif,
+        }
     }
 }
 
 impl From<UpdateOrganizationRequest> for UpdateOrganizationParams {
     fn from(req: UpdateOrganizationRequest) -> Self {
-        Self { name: req.name }
+        Self {
+            name: req.name,
+            rif: req.rif,
+        }
     }
 }
 

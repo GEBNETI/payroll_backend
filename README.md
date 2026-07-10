@@ -77,6 +77,7 @@ Axum-based REST API for managing organizations, payrolls, and hierarchical divis
 | DELETE | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/details/:detail_id` | Delete payroll history detail |
 | GET | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/reports/earnings-deductions` | Earnings/deductions report grouped by concept and employee |
 | GET | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/reports/payroll` | Payroll report grouped by division, sub-division, and employee |
+| GET | `/organizations/:organization_id/payrolls/:payroll_id/history/:history_id/reports/patria/:bank_id?payment_date=YYYY-MM-DD` | Patria bank payment text file |
 
 ## API Documentation
 

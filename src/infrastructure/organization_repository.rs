@@ -14,6 +14,7 @@ use crate::{
 };
 
 const ORGANIZATION_TABLE: &str = "organization";
+const SELECT_ORGANIZATION_FIELDS: &str = "SELECT id, name, rif ?? NONE AS rif";
 
 #[derive(Clone)]
 pub struct SurrealOrganizationRepository<C>
@@ -37,11 +38,11 @@ impl<C> OrganizationRepository for SurrealOrganizationRepository<C>
 where
     C: Connection + Clone + Send + Sync + 'static,
 {
-    async fn insert(&self, id: Uuid, name: String) -> AppResult<Organization> {
+    async fn insert(&self, id: Uuid, name: String, rif: String) -> AppResult<Organization> {
         let _: Option<JsonValue> = self
             .client
             .create((ORGANIZATION_TABLE, id.to_string()))
-            .content(json!({"name": name}))
+            .content(json!({"name": name, "rif": rif}))
             .await?;
 
         self.fetch(id)
@@ -53,7 +54,7 @@ where
         let rid = RecordId::new(ORGANIZATION_TABLE, id.to_string());
         let mut response = self
             .client
-            .query("SELECT * FROM organization WHERE id = $rid")
+            .query(format!("{SELECT_ORGANIZATION_FIELDS} FROM organization WHERE id = $rid"))
             .bind(("rid", rid))
             .await?;
 
@@ -66,7 +67,10 @@ where
     }
 
     async fn fetch_all(&self) -> AppResult<Vec<Organization>> {
-        let mut response = self.client.query("SELECT * FROM organization").await?;
+        let mut response = self
+            .client
+            .query(format!("{SELECT_ORGANIZATION_FIELDS} FROM organization"))
+            .await?;
 
         let result: Result<Vec<OrganizationRecord>, _> = response.take(0);
         match result {
@@ -76,8 +80,13 @@ where
         }
     }
 
-    async fn update(&self, id: Uuid, name: Option<String>) -> AppResult<Option<Organization>> {
-        let payload = build_update_payload(name)?;
+    async fn update(
+        &self,
+        id: Uuid,
+        name: Option<String>,
+        rif: Option<String>,
+    ) -> AppResult<Option<Organization>> {
+        let payload = build_update_payload(name, rif)?;
 
         let _: Option<JsonValue> = self
             .client
@@ -96,24 +105,42 @@ where
 
         Ok(record.is_some())
     }
+
+    async fn backfill_missing_rifs(&self, rif: String) -> AppResult<usize> {
+        let mut response = self
+            .client
+            .query("UPDATE organization SET rif = $rif WHERE !rif")
+            .bind(("rif", rif))
+            .await?;
+        let updated: Vec<JsonValue> = response.take(0)?;
+        Ok(updated.len())
+    }
 }
 
 #[derive(Debug, Deserialize, SurrealValue)]
 struct OrganizationRecord {
     id: RecordId,
     name: String,
+    rif: Option<String>,
 }
 
 fn record_to_domain(record: OrganizationRecord) -> AppResult<Organization> {
     let id = parse_thing_id(&record.id.key, "stored organization id")?;
-    Ok(Organization::new(id, record.name))
+    Ok(Organization::new(
+        id,
+        record.name,
+        record.rif.unwrap_or_else(|| "G000000000".to_string()),
+    ))
 }
 
-fn build_update_payload(name: Option<String>) -> AppResult<JsonValue> {
+fn build_update_payload(name: Option<String>, rif: Option<String>) -> AppResult<JsonValue> {
     let mut object = Map::new();
 
     if let Some(name) = name {
         object.insert("name".to_string(), JsonValue::String(name));
+    }
+    if let Some(rif) = rif {
+        object.insert("rif".to_string(), JsonValue::String(rif));
     }
 
     if object.is_empty() {

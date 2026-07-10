@@ -13,9 +13,10 @@ use crate::{
         division::Division, payroll_concept::PayrollConceptType, payroll_history::PayrollHistory,
         payroll_history_detail::PayrollHistoryDetail,
     },
-    error::AppResult,
+    error::{AppError, AppResult},
     services::{
-        division::DivisionService, payroll_history::PayrollHistoryService,
+        division::DivisionService, organization::OrganizationService,
+        payroll_history::PayrollHistoryService,
         payroll_history_detail::PayrollHistoryDetailService,
     },
 };
@@ -114,11 +115,17 @@ pub struct PayrollReportConceptSummary {
     pub total: f64,
 }
 
+pub struct PatriaTextFile {
+    pub filename: String,
+    pub content: String,
+}
+
 #[derive(Clone)]
 pub struct PayrollHistoryReportService {
     payroll_history_service: Arc<PayrollHistoryService>,
     payroll_history_detail_service: Arc<PayrollHistoryDetailService>,
     division_service: Arc<DivisionService>,
+    organization_service: Arc<OrganizationService>,
 }
 
 impl PayrollHistoryReportService {
@@ -126,11 +133,13 @@ impl PayrollHistoryReportService {
         payroll_history_service: Arc<PayrollHistoryService>,
         payroll_history_detail_service: Arc<PayrollHistoryDetailService>,
         division_service: Arc<DivisionService>,
+        organization_service: Arc<OrganizationService>,
     ) -> Self {
         Self {
             payroll_history_service,
             payroll_history_detail_service,
             division_service,
+            organization_service,
         }
     }
 
@@ -172,6 +181,42 @@ impl PayrollHistoryReportService {
             .await?;
 
         Ok(Self::build_payroll_report(history, details, divisions))
+    }
+
+    pub async fn patria_text_file(
+        &self,
+        organization_id: Uuid,
+        payroll_id: Uuid,
+        history_id: Uuid,
+        bank_id: Uuid,
+        payment_date: NaiveDate,
+    ) -> AppResult<PatriaTextFile> {
+        let history = self
+            .payroll_history_service
+            .ensure_exists(organization_id, payroll_id, history_id)
+            .await?;
+        let organization = self
+            .organization_service
+            .get(organization_id)
+            .await?
+            .ok_or_else(|| {
+                AppError::not_found(format!("organization `{organization_id}` not found"))
+            })?;
+        let details: Vec<PayrollHistoryDetail> = self
+            .payroll_history_detail_service
+            .list(organization_id, payroll_id, history_id)
+            .await?
+            .into_iter()
+            .filter(|detail| detail.bank_id == bank_id)
+            .collect();
+
+        if details.is_empty() {
+            return Err(AppError::not_found(format!(
+                "no payroll history details found for bank `{bank_id}`"
+            )));
+        }
+
+        Self::build_patria_text_file(history, organization.rif, details, payment_date)
     }
 
     fn build_earnings_deductions_report(
@@ -229,6 +274,178 @@ impl PayrollHistoryReportService {
             deductions,
             total_deductions,
             net_total: total_earnings - total_deductions,
+        }
+    }
+
+    fn build_patria_text_file(
+        history: PayrollHistory,
+        rif: String,
+        details: Vec<PayrollHistoryDetail>,
+        payment_date: NaiveDate,
+    ) -> AppResult<PatriaTextFile> {
+        let mut details_by_employee: HashMap<Uuid, Vec<PayrollHistoryDetail>> = HashMap::new();
+        for detail in details {
+            details_by_employee
+                .entry(detail.employee_id)
+                .or_default()
+                .push(detail);
+        }
+
+        let mut records = Vec::new();
+        let mut total_cents = 0_u64;
+        let mut bank_name = None;
+        for employee_details in details_by_employee.into_values() {
+            let sample = employee_details
+                .first()
+                .expect("employee details must not be empty");
+            let earnings: f64 = employee_details
+                .iter()
+                .filter(|detail| detail.payroll_concept_type == PayrollConceptType::Earning)
+                .map(|detail| detail.amount)
+                .sum();
+            let deductions: f64 = employee_details
+                .iter()
+                .filter(|detail| detail.payroll_concept_type == PayrollConceptType::Deduction)
+                .map(|detail| detail.amount)
+                .sum();
+            let amount_cents = Self::amount_to_cents(earnings - deductions, "employee net amount")?;
+            total_cents = total_cents.checked_add(amount_cents).ok_or_else(|| {
+                AppError::validation("total amount exceeds the Patria file limit")
+            })?;
+            bank_name.get_or_insert_with(|| sample.bank_name.clone());
+
+            records.push((
+                sample.employee_id_number.clone(),
+                format!(
+                    "{} {}",
+                    sample.employee_first_name, sample.employee_last_name
+                ),
+                sample.employee_bank_account.clone(),
+                amount_cents,
+            ));
+        }
+        records.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let record_count = u64::try_from(records.len())
+            .map_err(|_| AppError::validation("record count exceeds the Patria file limit"))?;
+        let date = payment_date.format("%Y%m%d").to_string();
+        let mut content = format!(
+            "ONTNOM{}{}{}VES{}\n",
+            Self::normalize_rif(&rif)?,
+            Self::fixed_number(record_count, 7, "record count")?,
+            Self::fixed_number(total_cents, 15, "total amount")?,
+            date,
+        );
+
+        for (id_number, full_name, bank_account, amount_cents) in records {
+            let (prefix, digits) = Self::split_id_number(&id_number)?;
+            let bank_account = Self::normalize_bank_account(&bank_account)?;
+            content.push_str(&format!(
+                "{}{}{}{}{}\n",
+                prefix,
+                Self::fixed_number(digits, 8, "id number")?,
+                bank_account,
+                Self::fixed_number(amount_cents, 11, "employee net amount")?,
+                Self::fixed_text(&full_name, 40),
+            ));
+        }
+
+        let filename = format!(
+            "{}-{}-{}-{}-patria.txt",
+            Self::slug(&history.organization_name),
+            Self::slug(&history.payroll_name),
+            date,
+            Self::slug(bank_name.as_deref().unwrap_or("bank")),
+        );
+        Ok(PatriaTextFile { filename, content })
+    }
+
+    fn normalize_rif(value: &str) -> AppResult<String> {
+        let rif = value.trim().to_ascii_uppercase();
+        let mut characters = rif.chars();
+        let Some(prefix) = characters.next() else {
+            return Err(AppError::validation("organization rif is invalid"));
+        };
+        if !matches!(prefix, 'G' | 'J')
+            || rif.len() != 10
+            || !characters.all(|value| value.is_ascii_digit())
+        {
+            return Err(AppError::validation("organization rif is invalid"));
+        }
+        Ok(rif)
+    }
+
+    fn split_id_number(value: &str) -> AppResult<(char, u64)> {
+        let id_number = value.trim().to_ascii_uppercase();
+        let mut characters = id_number.chars();
+        let Some(prefix) = characters.next() else {
+            return Err(AppError::validation("employee id number is invalid"));
+        };
+        let digits: String = characters.collect();
+        if !matches!(prefix, 'V' | 'E')
+            || digits.len() != 8
+            || !digits.chars().all(|value| value.is_ascii_digit())
+        {
+            return Err(AppError::validation("employee id number is invalid"));
+        }
+        let digits = digits
+            .parse()
+            .map_err(|_| AppError::validation("employee id number is invalid"))?;
+        Ok((prefix, digits))
+    }
+
+    fn normalize_bank_account(value: &str) -> AppResult<String> {
+        let bank_account = value.trim();
+        if bank_account.len() != 20 || !bank_account.chars().all(|value| value.is_ascii_digit()) {
+            return Err(AppError::validation("employee bank account is invalid"));
+        }
+        Ok(bank_account.to_string())
+    }
+
+    fn amount_to_cents(value: f64, field: &str) -> AppResult<u64> {
+        if !value.is_finite() || value < 0.0 {
+            return Err(AppError::validation(format!("{field} cannot be negative")));
+        }
+        let cents = (value * 100.0).round();
+        if cents > u64::MAX as f64 {
+            return Err(AppError::validation(format!(
+                "{field} exceeds the Patria file limit"
+            )));
+        }
+        Ok(cents as u64)
+    }
+
+    fn fixed_number(value: u64, width: usize, field: &str) -> AppResult<String> {
+        let value = value.to_string();
+        if value.len() > width {
+            return Err(AppError::validation(format!(
+                "{field} exceeds the Patria file limit"
+            )));
+        }
+        Ok(format!("{value:0>width$}"))
+    }
+
+    fn fixed_text(value: &str, width: usize) -> String {
+        let value: String = value.chars().take(width).collect();
+        format!("{value:width$}")
+    }
+
+    fn slug(value: &str) -> String {
+        let slug = value
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() {
+                    character.to_ascii_lowercase()
+                } else {
+                    '-'
+                }
+            })
+            .collect::<String>();
+        let slug = slug.trim_matches('-');
+        if slug.is_empty() {
+            "unknown".to_string()
+        } else {
+            slug.to_string()
         }
     }
 
@@ -638,5 +855,56 @@ mod tests {
         assert_eq!(report.divisions[0].summary.total_earnings, 150.0);
         assert_eq!(report.divisions[0].summary.total_deductions, 25.0);
         assert_eq!(report.summary.net_total, 125.0);
+    }
+
+    #[test]
+    fn builds_a_fixed_width_patria_text_file_for_one_bank() {
+        let bank_id = Uuid::new_v4();
+        let employee_id = Uuid::new_v4();
+        let mut earning = detail(
+            Uuid::new_v4(),
+            "SALARY",
+            "Salary",
+            PayrollConceptType::Earning,
+            "V00000001",
+            "Ana",
+            "Baker",
+            100.50,
+        );
+        earning.employee_id = employee_id;
+        earning.bank_id = bank_id;
+        earning.bank_name = "Bank".to_string();
+        earning.employee_bank_account = "01020000000000000001".to_string();
+
+        let mut deduction = detail(
+            Uuid::new_v4(),
+            "TAX",
+            "Income tax",
+            PayrollConceptType::Deduction,
+            "V00000001",
+            "Ana",
+            "Baker",
+            0.50,
+        );
+        deduction.employee_id = employee_id;
+        deduction.bank_id = bank_id;
+        deduction.bank_name = "Bank".to_string();
+        deduction.employee_bank_account = "01020000000000000001".to_string();
+
+        let file = PayrollHistoryReportService::build_patria_text_file(
+            history(),
+            "G000000000".to_string(),
+            vec![earning, deduction],
+            NaiveDate::from_ymd_opt(2026, 7, 10).unwrap(),
+        )
+        .unwrap();
+
+        let lines: Vec<&str> = file.content.lines().collect();
+        assert_eq!(lines[0], "ONTNOMG0000000000000001000000000010000VES20260710");
+        assert_eq!(lines[1].len(), 80);
+        assert_eq!(&lines[1][0..9], "V00000001");
+        assert_eq!(&lines[1][9..29], "01020000000000000001");
+        assert_eq!(&lines[1][29..40], "00000010000");
+        assert_eq!(file.filename, "acme-main-20260710-bank-patria.txt");
     }
 }

@@ -25,7 +25,7 @@ async fn creating_an_organization_returns_created_payload() {
                 .method("POST")
                 .uri("/organizations")
                 .header("content-type", "application/json")
-                .body(Body::from(json!({"name": "Acme"}).to_string()))
+                .body(Body::from(json!({"name": "Acme", "rif": "G000000000"}).to_string()))
                 .expect("request"),
         )
         .await
@@ -50,7 +50,7 @@ async fn listing_organizations_returns_sorted_results() {
                     .method("POST")
                     .uri("/organizations")
                     .header("content-type", "application/json")
-                    .body(Body::from(json!({"name": name}).to_string()))
+                .body(Body::from(json!({"name": name, "rif": "G000000000"}).to_string()))
                     .expect("request"),
             )
             .await
@@ -87,7 +87,7 @@ async fn can_update_and_delete_an_organization() {
                 .method("POST")
                 .uri("/organizations")
                 .header("content-type", "application/json")
-                .body(Body::from(json!({"name": "Acme"}).to_string()))
+                .body(Body::from(json!({"name": "Acme", "rif": "G000000000"}).to_string()))
                 .expect("request"),
         )
         .await
@@ -152,7 +152,7 @@ async fn rejecting_empty_names() {
                 .method("POST")
                 .uri("/organizations")
                 .header("content-type", "application/json")
-                .body(Body::from(json!({"name": "   "}).to_string()))
+                .body(Body::from(json!({"name": "   ", "rif": "G000000000"}).to_string()))
                 .expect("request"),
         )
         .await

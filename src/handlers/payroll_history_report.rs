@@ -1,13 +1,18 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
+    http::{header, HeaderMap, HeaderValue},
+    response::IntoResponse,
     Json,
 };
+use chrono::NaiveDate;
 use serde::Deserialize;
 use utoipa::IntoParams;
 use uuid::Uuid;
 
 use crate::{
-    error::AppResult, server::AppState, services::payroll_history_report::EarningsDeductionsReport,
+    error::{AppError, AppResult},
+    server::AppState,
+    services::payroll_history_report::EarningsDeductionsReport,
     services::payroll_history_report::PayrollReport,
 };
 
@@ -17,6 +22,22 @@ pub struct PayrollHistoryReportPathParams {
     pub organization_id: Uuid,
     pub payroll_id: Uuid,
     pub history_id: Uuid,
+}
+
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct PatriaReportQueryParams {
+    #[param(value_type = String, format = Date)]
+    pub payment_date: NaiveDate,
+}
+
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+pub struct PatriaReportPathParams {
+    pub organization_id: Uuid,
+    pub payroll_id: Uuid,
+    pub history_id: Uuid,
+    pub bank_id: Uuid,
 }
 
 #[utoipa::path(
@@ -63,4 +84,46 @@ pub async fn payroll(
         .await?;
 
     Ok(Json(report))
+}
+
+#[utoipa::path(
+    get,
+    path = "/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/reports/patria/{bank_id}",
+    params(PatriaReportPathParams, PatriaReportQueryParams),
+    responses(
+        (status = 200, description = "Patria bank text file", content_type = "text/plain"),
+        (status = 404, description = "Payroll history or bank details not found")
+    ),
+    tag = "Payroll History Reports",
+    operation_id = "get_patria_report"
+)]
+pub async fn patria(
+    State(state): State<AppState>,
+    Path(params): Path<PatriaReportPathParams>,
+    Query(query): Query<PatriaReportQueryParams>,
+) -> AppResult<axum::response::Response> {
+    let file = state
+        .payroll_history_report_service()
+        .patria_text_file(
+            params.organization_id,
+            params.payroll_id,
+            params.history_id,
+            params.bank_id,
+            query.payment_date,
+        )
+        .await?;
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/plain; charset=utf-8"),
+    );
+    let disposition = format!("inline; filename=\"{}\"", file.filename);
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        disposition
+            .parse()
+            .map_err(|_| AppError::internal("failed to set Patria filename"))?,
+    );
+
+    Ok((headers, file.content).into_response())
 }

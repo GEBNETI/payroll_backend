@@ -144,7 +144,7 @@ impl EmployeeService {
         self.ensure_bank_belongs(organization_id, params.bank_id)
             .await?;
 
-        let id_number = Self::normalize_field(&params.id_number, "id number")?;
+        let id_number = Self::normalize_id_number(&params.id_number)?;
         let last_name = Self::normalize_field(&params.last_name, "last name")?;
         let first_name = Self::normalize_field(&params.first_name, "first name")?;
         let address = Self::normalize_field(&params.address, "address")?;
@@ -160,7 +160,7 @@ impl EmployeeService {
             .filter(|value| !value.is_empty())
             .unwrap_or_default()
             .to_string();
-        let bank_account = Self::normalize_field(&params.bank_account, "bank account")?;
+        let bank_account = Self::normalize_bank_account(&params.bank_account)?;
         let status = Self::normalize_field(&params.status, "status")?;
         let hours = params
             .hours
@@ -290,7 +290,7 @@ impl EmployeeService {
             id_number: params
                 .id_number
                 .as_deref()
-                .map(|value| Self::normalize_field(value, "id number"))
+                .map(Self::normalize_id_number)
                 .transpose()?,
             last_name: params
                 .last_name
@@ -338,14 +338,13 @@ impl EmployeeService {
             clasification: params
                 .clasification
                 .as_deref()
-                .map(|value| Self::normalize_field(value, "clasification"))
-                .transpose()?,
+                .map(|value| value.trim().to_string()),
             job_id: params.job_id,
             bank_id: params.bank_id,
             bank_account: params
                 .bank_account
                 .as_deref()
-                .map(|value| Self::normalize_field(value, "bank account"))
+                .map(Self::normalize_bank_account)
                 .transpose()?,
             status: params
                 .status
@@ -440,6 +439,38 @@ impl EmployeeService {
         Ok(trimmed.to_string())
     }
 
+    fn normalize_id_number(value: &str) -> AppResult<String> {
+        let id_number = value.trim().to_ascii_uppercase();
+        let mut characters = id_number.chars();
+        let Some(prefix) = characters.next() else {
+            return Err(AppError::validation(
+                "id number must start with V or E followed by 8 digits",
+            ));
+        };
+
+        if !matches!(prefix, 'V' | 'E')
+            || id_number.len() != 9
+            || !characters.all(|value| value.is_ascii_digit())
+        {
+            return Err(AppError::validation(
+                "id number must start with V or E followed by 8 digits",
+            ));
+        }
+
+        Ok(id_number)
+    }
+
+    fn normalize_bank_account(value: &str) -> AppResult<String> {
+        let bank_account = value.trim();
+        if bank_account.len() != 20 || !bank_account.chars().all(|value| value.is_ascii_digit()) {
+            return Err(AppError::validation(
+                "bank account must contain exactly 20 digits",
+            ));
+        }
+
+        Ok(bank_account.to_string())
+    }
+
     fn validate_hours(value: i32) -> AppResult<i32> {
         if value < 0 {
             return Err(AppError::validation("hours cannot be negative"));
@@ -469,6 +500,30 @@ impl EmployeeService {
             Ok(Some(date))
         } else {
             Ok(None)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EmployeeService;
+
+    #[test]
+    fn validates_id_numbers_and_bank_accounts() {
+        assert_eq!(
+            EmployeeService::normalize_id_number(" v12345678 ").unwrap(),
+            "V12345678"
+        );
+        assert_eq!(
+            EmployeeService::normalize_bank_account("01020000000000000001").unwrap(),
+            "01020000000000000001"
+        );
+
+        for id_number in ["", "A12345678", "V1234567", "V123456789", "V1234A678"] {
+            assert!(EmployeeService::normalize_id_number(id_number).is_err());
+        }
+        for bank_account in ["", "0102000000000000000", "010200000000000000001", "0102000000000000000A"] {
+            assert!(EmployeeService::normalize_bank_account(bank_account).is_err());
         }
     }
 }

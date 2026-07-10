@@ -72,6 +72,7 @@ use utoipa::OpenApi;
         crate::handlers::payroll_history_detail::delete,
         crate::handlers::payroll_history_report::earnings_deductions,
         crate::handlers::payroll_history_report::payroll,
+        crate::handlers::payroll_history_report::patria,
         crate::handlers::payroll_calculator::calculate,
         crate::handlers::payroll_calculator::clean,
         crate::handlers::payroll_calculator::recalculate,

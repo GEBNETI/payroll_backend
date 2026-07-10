@@ -48,8 +48,8 @@ pub struct InMemoryBankRepository {
 
 #[async_trait]
 impl OrganizationRepository for InMemoryOrganizationRepository {
-    async fn insert(&self, id: Uuid, name: String) -> AppResult<Organization> {
-        let organization = Organization::new(id, name);
+    async fn insert(&self, id: Uuid, name: String, rif: String) -> AppResult<Organization> {
+        let organization = Organization::new(id, name, rif);
         self.store
             .write()
             .await
@@ -65,11 +65,19 @@ impl OrganizationRepository for InMemoryOrganizationRepository {
         Ok(self.store.read().await.values().cloned().collect())
     }
 
-    async fn update(&self, id: Uuid, name: Option<String>) -> AppResult<Option<Organization>> {
+    async fn update(
+        &self,
+        id: Uuid,
+        name: Option<String>,
+        rif: Option<String>,
+    ) -> AppResult<Option<Organization>> {
         let mut guard = self.store.write().await;
         if let Some(existing) = guard.get_mut(&id) {
             if let Some(name) = name {
                 existing.name = name;
+            }
+            if let Some(rif) = rif {
+                existing.rif = rif;
             }
             return Ok(Some(existing.clone()));
         }
@@ -79,6 +87,17 @@ impl OrganizationRepository for InMemoryOrganizationRepository {
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
         Ok(self.store.write().await.remove(&id).is_some())
+    }
+
+    async fn backfill_missing_rifs(&self, rif: String) -> AppResult<usize> {
+        let mut updated = 0;
+        for organization in self.store.write().await.values_mut() {
+            if organization.rif.trim().is_empty() {
+                organization.rif = rif.clone();
+                updated += 1;
+            }
+        }
+        Ok(updated)
     }
 }
 

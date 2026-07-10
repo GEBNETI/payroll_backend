@@ -175,6 +175,15 @@ impl AppState {
             ORGANIZATION_MANAGER_ROLE, PAYROLL_REPORT_ROLE, PAYROLL_USER_ROLE, SUPERUSER_ROLE,
         };
 
+        let migrated_organizations = self
+            .organization_service()
+            .backfill_missing_rifs()
+            .await
+            .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
+        if migrated_organizations > 0 {
+            tracing::info!(migrated_organizations, "backfilled missing organization RIFs");
+        }
+
         self.role_service()
             .get_or_create(SUPERUSER_ROLE)
             .await
@@ -519,6 +528,7 @@ impl AppStateBuilder {
             Arc::clone(&payroll_history_service),
             Arc::clone(&payroll_history_detail_service),
             Arc::clone(&division_service),
+            Arc::clone(&organization_service),
         ));
 
         let payroll_calculator_service = Arc::new(PayrollCalculatorService::new(

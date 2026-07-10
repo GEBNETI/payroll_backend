@@ -23,7 +23,7 @@ async fn create_organization(app: &Router) -> Uuid {
                 .method("POST")
                 .uri("/organizations")
                 .header("content-type", "application/json")
-                .body(Body::from(json!({"name": "Employees Org"}).to_string()))
+                .body(Body::from(json!({"name": "Employees Org", "rif": "G000000000"}).to_string()))
                 .expect("request"),
         )
         .await
@@ -155,7 +155,7 @@ async fn can_create_and_list_employees() {
                 .uri(format!("/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees"))
                 .header("content-type", "application/json")
                 .body(Body::from(json!({
-                    "id_number": "123-456",
+                    "id_number": "V12345678",
                     "last_name": "Doe",
                     "first_name": "Jane",
                     "address": "123 Main St",
@@ -169,7 +169,7 @@ async fn can_create_and_list_employees() {
                     "clasification": "Full-time",
                     "job_id": job_id,
                     "bank_id": bank_id,
-                    "bank_account": "ACC123",
+                    "bank_account": "01020000000000000001",
                     "status": "Active",
                     "hours": 40,
                     "salary": 55000.0
@@ -220,7 +220,7 @@ async fn can_create_employee_without_clasification_or_hours() {
                 .uri(format!("/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees"))
                 .header("content-type", "application/json")
                 .body(Body::from(json!({
-                    "id_number": "123-456",
+                    "id_number": "V12345678",
                     "last_name": "Doe",
                     "first_name": "Jane",
                     "address": "123 Main St",
@@ -233,7 +233,7 @@ async fn can_create_employee_without_clasification_or_hours() {
                     "hire_date": "2020-01-01",
                     "job_id": job_id,
                     "bank_id": bank_id,
-                    "bank_account": "ACC123",
+                    "bank_account": "01020000000000000001",
                     "status": "Active",
                     "salary": 55000.0
                 }).to_string()))
@@ -268,7 +268,7 @@ async fn rejects_invalid_references_and_dates() {
                 .uri(format!("/organizations/{organization_id}/payrolls/{payroll_a}/divisions/{division_id}/employees"))
                 .header("content-type", "application/json")
                 .body(Body::from(json!({
-                    "id_number": "BADBANK",
+                    "id_number": "V12345678",
                     "last_name": "Bad",
                     "first_name": "Bank",
                     "address": "Unknown",
@@ -282,7 +282,7 @@ async fn rejects_invalid_references_and_dates() {
                     "clasification": "Temp",
                     "job_id": job_in_payroll,
                     "bank_id": bank_other_org,
-                    "bank_account": "ACC000",
+                    "bank_account": "01020000000000000001",
                     "status": "Active",
                     "hours": 10,
                     "salary": 35000.0
@@ -303,7 +303,7 @@ async fn rejects_invalid_references_and_dates() {
                 .uri(format!("/organizations/{organization_id}/payrolls/{payroll_a}/divisions/{division_id}/employees"))
                 .header("content-type", "application/json")
                 .body(Body::from(json!({
-                    "id_number": "DATEERR",
+                    "id_number": "V12345678",
                     "last_name": "Time",
                     "first_name": "Traveler",
                     "address": "123 Time Rd",
@@ -318,7 +318,7 @@ async fn rejects_invalid_references_and_dates() {
                     "clasification": "Full-time",
                     "job_id": job_in_payroll,
                     "bank_id": bank_valid,
-                    "bank_account": "ACC999",
+                    "bank_account": "01020000000000000001",
                     "status": "Inactive",
                     "hours": 20,
                     "salary": 45000.0
@@ -348,7 +348,7 @@ async fn can_update_and_delete_employee() {
                 .uri(format!("/organizations/{organization_id}/payrolls/{payroll_id}/divisions/{division_id}/employees"))
                 .header("content-type", "application/json")
                 .body(Body::from(json!({
-                    "id_number": "ABC123",
+                    "id_number": "V12345678",
                     "last_name": "Smith",
                     "first_name": "Alex",
                     "address": "456 Side St",
@@ -362,7 +362,7 @@ async fn can_update_and_delete_employee() {
                     "clasification": "Part-time",
                     "job_id": job_id,
                     "bank_id": bank_id,
-                    "bank_account": "ACCT-456",
+                    "bank_account": "01020000000000000001",
                     "status": "Active",
                     "hours": 25,
                     "salary": 42000.0

@@ -12,4 +12,8 @@ pub fn router() -> Router<AppState> {
             "/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/reports/payroll",
             get(handlers::payroll_history_report::payroll),
         )
+        .route(
+            "/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/reports/patria/{bank_id}",
+            get(handlers::payroll_history_report::patria),
+        )
 }

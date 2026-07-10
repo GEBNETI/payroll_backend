@@ -21,7 +21,7 @@ async fn create_organization(app: &Router) -> Uuid {
                 .uri("/organizations")
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    json!({"name": "Employee Concept Org"}).to_string(),
+                    json!({"name": "Employee Concept Org", "rif": "G000000000"}).to_string(),
                 ))
                 .expect("request"),
         )
@@ -160,7 +160,7 @@ async fn create_employee(
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
-                        "id_number": "EC-001",
+                        "id_number": "V12345678",
                         "last_name": "Doe",
                         "first_name": "Jane",
                         "address": "123 Main St",
@@ -175,7 +175,7 @@ async fn create_employee(
                         "clasification": "Full-time",
                         "job_id": job_id,
                         "bank_id": bank_id,
-                        "bank_account": "000111222",
+                        "bank_account": "01020000000000000001",
                         "status": "active",
                         "hours": 40,
                         "salary": 60000.0

@@ -6,13 +6,15 @@ use uuid::Uuid;
 pub struct Organization {
     pub id: Uuid,
     pub name: String,
+    pub rif: String,
 }
 
 impl Organization {
-    pub fn new(id: Uuid, name: impl Into<String>) -> Self {
+    pub fn new(id: Uuid, name: impl Into<String>, rif: impl Into<String>) -> Self {
         Self {
             id,
             name: name.into(),
+            rif: rif.into(),
         }
     }
 }
