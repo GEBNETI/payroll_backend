@@ -93,7 +93,7 @@ pub fn parse_thing_id(id: &surrealdb::types::RecordIdKey, context: &str) -> AppR
     match id {
         RecordIdKey::String(value) => Uuid::parse_str(value)
             .map_err(|_| AppError::internal(format!("{context} is not a valid UUID"))),
-        RecordIdKey::Uuid(value) => Ok(value.clone().into_inner()),
+        RecordIdKey::Uuid(value) => Ok((*value).into_inner()),
         _ => Err(AppError::internal(format!(
             "{context} is not a supported format"
         ))),

@@ -673,6 +673,7 @@ mod tests {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn detail(
         concept_id: Uuid,
         code: &str,

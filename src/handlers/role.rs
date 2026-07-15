@@ -29,7 +29,11 @@ pub struct RolePathParams {
 impl From<Role> for RoleResponse {
     fn from(r: Role) -> Self {
         let label = role_label(&r.name);
-        Self { id: r.id, name: r.name, label }
+        Self {
+            id: r.id,
+            name: r.name,
+            label,
+        }
     }
 }
 

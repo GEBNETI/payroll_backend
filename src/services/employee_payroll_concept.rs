@@ -105,7 +105,7 @@ impl EmployeePayrollConceptService {
             .await?;
 
         let mut assignments = self.repository.fetch_by_employee(employee_id).await?;
-        assignments.sort_by(|a, b| a.payroll_concept_id.cmp(&b.payroll_concept_id));
+        assignments.sort_by_key(|assignment| assignment.payroll_concept_id);
         Ok(assignments)
     }
 

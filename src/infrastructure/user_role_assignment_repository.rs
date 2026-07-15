@@ -16,8 +16,7 @@ use crate::{
 const ASSIGNMENT_TABLE: &str = "user_role_assignment";
 
 // `?? NONE` coalesces SQL null to SurrealDB NONE so Option<String> deserializes correctly
-const SELECT_FIELDS: &str =
-    "SELECT id, user_id, role_id, role_name, \
+const SELECT_FIELDS: &str = "SELECT id, user_id, role_id, role_name, \
      organization_id ?? NONE AS organization_id, \
      payroll_id ?? NONE AS payroll_id, \
      payroll_name ?? NONE AS payroll_name";
@@ -73,11 +72,7 @@ where
     async fn fetch(&self, id: Uuid) -> AppResult<Option<UserRoleAssignment>> {
         let rid = RecordId::new(ASSIGNMENT_TABLE, id.to_string());
         let query = format!("{SELECT_FIELDS} FROM user_role_assignment WHERE id = $rid");
-        let mut response = self
-            .client
-            .query(query)
-            .bind(("rid", rid))
-            .await?;
+        let mut response = self.client.query(query).bind(("rid", rid)).await?;
 
         let result: Result<Option<AssignmentRecord>, _> = response.take(0);
         match result {
@@ -88,8 +83,7 @@ where
     }
 
     async fn fetch_for_user(&self, user_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
-        let query =
-            format!("{SELECT_FIELDS} FROM user_role_assignment WHERE user_id = $user_id");
+        let query = format!("{SELECT_FIELDS} FROM user_role_assignment WHERE user_id = $user_id");
         let mut response = self
             .client
             .query(query)

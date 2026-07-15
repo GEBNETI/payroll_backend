@@ -21,7 +21,9 @@ async fn create_organization(app: &Router) -> Uuid {
                 .method("POST")
                 .uri("/organizations")
                 .header("content-type", "application/json")
-                .body(Body::from(json!({"name": "Calculator Org", "rif": "G000000000"}).to_string()))
+                .body(Body::from(
+                    json!({"name": "Calculator Org", "rif": "G000000000"}).to_string(),
+                ))
                 .expect("request"),
         )
         .await
@@ -143,6 +145,7 @@ async fn create_bank(app: &Router, organization_id: Uuid) -> Uuid {
     Uuid::parse_str(body["id"].as_str().unwrap()).expect("uuid")
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn create_employee(
     app: &Router,
     organization_id: Uuid,

@@ -68,7 +68,9 @@ where
     async fn fetch_by_name(&self, name: &str) -> AppResult<Option<Role>> {
         let mut response = self
             .client
-            .query(format!("SELECT * FROM {ROLE_TABLE} WHERE name = $name LIMIT 1"))
+            .query(format!(
+                "SELECT * FROM {ROLE_TABLE} WHERE name = $name LIMIT 1"
+            ))
             .bind(("name", name.to_string()))
             .await?;
 

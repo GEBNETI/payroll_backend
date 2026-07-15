@@ -78,11 +78,7 @@ impl OrganizationService {
             .as_deref()
             .map(Self::normalize_name)
             .transpose()?;
-        let rif = params
-            .rif
-            .as_deref()
-            .map(Self::normalize_rif)
-            .transpose()?;
+        let rif = params.rif.as_deref().map(Self::normalize_rif).transpose()?;
 
         self.repository.update(id, name, rif).await
     }
@@ -115,7 +111,10 @@ impl OrganizationService {
             ));
         };
 
-        if !matches!(prefix, 'G' | 'J') || rif.len() != 10 || !characters.all(|value| value.is_ascii_digit()) {
+        if !matches!(prefix, 'G' | 'J')
+            || rif.len() != 10
+            || !characters.all(|value| value.is_ascii_digit())
+        {
             return Err(AppError::validation(
                 "rif must start with G or J followed by 9 digits",
             ));

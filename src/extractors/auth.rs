@@ -51,9 +51,10 @@ impl AuthUser {
         if self.is_superuser {
             return Ok(());
         }
-        let ok = self.assignments.iter().any(|a| {
-            a.organization_id == Some(org_id) && a.role_name == ORGANIZATION_MANAGER_ROLE
-        });
+        let ok = self
+            .assignments
+            .iter()
+            .any(|a| a.organization_id == Some(org_id) && a.role_name == ORGANIZATION_MANAGER_ROLE);
         if ok {
             Ok(())
         } else {

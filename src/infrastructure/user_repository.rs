@@ -110,10 +110,7 @@ where
     }
 
     async fn delete(&self, id: Uuid) -> AppResult<bool> {
-        let record: Option<JsonValue> = self
-            .client
-            .delete((USER_TABLE, id.to_string()))
-            .await?;
+        let record: Option<JsonValue> = self.client.delete((USER_TABLE, id.to_string())).await?;
         Ok(record.is_some())
     }
 }
@@ -150,7 +147,10 @@ fn build_update_payload(params: UpdateUserParams) -> AppResult<JsonValue> {
         object.insert("name".to_string(), JsonValue::String(name));
     }
     if let Some(password_hash) = params.password_hash {
-        object.insert("password_hash".to_string(), JsonValue::String(password_hash));
+        object.insert(
+            "password_hash".to_string(),
+            JsonValue::String(password_hash),
+        );
     }
     if let Some(is_active) = params.is_active {
         object.insert("is_active".to_string(), JsonValue::Bool(is_active));

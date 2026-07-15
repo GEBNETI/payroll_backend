@@ -1,9 +1,9 @@
+use crate::handlers::user::UserRoleAssignmentResponse;
 use axum::{
     extract::State,
     http::{header, HeaderMap, StatusCode},
     Json,
 };
-use crate::handlers::user::UserRoleAssignmentResponse;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -163,8 +163,7 @@ pub async fn refresh(
 )]
 pub async fn logout() -> (StatusCode, HeaderMap) {
     let mut headers = HeaderMap::new();
-    let clear_cookie =
-        "refresh_token=; HttpOnly; Path=/auth/refresh; Max-Age=0; SameSite=Strict";
+    let clear_cookie = "refresh_token=; HttpOnly; Path=/auth/refresh; Max-Age=0; SameSite=Strict";
     if let Ok(v) = clear_cookie.parse() {
         headers.insert(header::SET_COOKIE, v);
     }

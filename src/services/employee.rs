@@ -522,7 +522,12 @@ mod tests {
         for id_number in ["", "A12345678", "V1234567", "V123456789", "V1234A678"] {
             assert!(EmployeeService::normalize_id_number(id_number).is_err());
         }
-        for bank_account in ["", "0102000000000000000", "010200000000000000001", "0102000000000000000A"] {
+        for bank_account in [
+            "",
+            "0102000000000000000",
+            "010200000000000000001",
+            "0102000000000000000A",
+        ] {
             assert!(EmployeeService::normalize_bank_account(bank_account).is_err());
         }
     }

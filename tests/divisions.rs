@@ -23,7 +23,9 @@ async fn create_organization(app: &Router) -> Uuid {
                 .method("POST")
                 .uri("/organizations")
                 .header("content-type", "application/json")
-                .body(Body::from(json!({"name": "Acme", "rif": "G000000000"}).to_string()))
+                .body(Body::from(
+                    json!({"name": "Acme", "rif": "G000000000"}).to_string(),
+                ))
                 .expect("request"),
         )
         .await
