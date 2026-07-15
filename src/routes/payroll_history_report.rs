@@ -13,7 +13,7 @@ pub fn router() -> Router<AppState> {
             get(handlers::payroll_history_report::payroll),
         )
         .route(
-            "/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/reports/patria/{bank_id}",
+            "/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/reports/patria",
             get(handlers::payroll_history_report::patria),
         )
 }
