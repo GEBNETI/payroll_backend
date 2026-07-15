@@ -17,6 +17,9 @@ use nomina::{
         payroll_concept_definition::PayrollConceptDefinition,
         payroll_history::{NewPayrollHistoryData, PayrollHistory},
         payroll_history_detail::{NewPayrollHistoryDetailData, PayrollHistoryDetail},
+        role::Role,
+        user::User,
+        user_role_assignment::UserRoleAssignment,
     },
     error::AppResult,
     services::{
@@ -33,6 +36,9 @@ use nomina::{
         payroll_concept_definition::PayrollConceptDefinitionRepository,
         payroll_history::{PayrollHistoryRepository, UpdatePayrollHistoryParams},
         payroll_history_detail::PayrollHistoryDetailRepository,
+        role::RoleRepository,
+        user::{InsertUserParams, UpdateUserParams, UserRepository},
+        user_role_assignment::{AssignRoleParams, UserRoleAssignmentRepository},
     },
 };
 
@@ -44,6 +50,167 @@ pub struct InMemoryOrganizationRepository {
 #[derive(Default)]
 pub struct InMemoryBankRepository {
     store: RwLock<HashMap<Uuid, Bank>>,
+}
+
+#[derive(Default)]
+pub struct InMemoryUserRepository {
+    store: RwLock<HashMap<Uuid, User>>,
+}
+
+#[derive(Default)]
+pub struct InMemoryRoleRepository {
+    store: RwLock<HashMap<Uuid, Role>>,
+}
+
+#[derive(Default)]
+pub struct InMemoryUserRoleAssignmentRepository {
+    store: RwLock<HashMap<Uuid, UserRoleAssignment>>,
+}
+
+#[async_trait]
+impl UserRepository for InMemoryUserRepository {
+    async fn insert(&self, id: Uuid, params: InsertUserParams) -> AppResult<User> {
+        let user = User::new(
+            id,
+            params.username,
+            params.email,
+            params.password_hash,
+            params.name,
+            true,
+        );
+        self.store.write().await.insert(user.id, user.clone());
+        Ok(user)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<User>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_username(&self, username: &str) -> AppResult<Option<User>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .find(|user| user.username == username)
+            .cloned())
+    }
+
+    async fn fetch_all(&self) -> AppResult<Vec<User>> {
+        Ok(self.store.read().await.values().cloned().collect())
+    }
+
+    async fn update(&self, id: Uuid, params: UpdateUserParams) -> AppResult<Option<User>> {
+        let mut guard = self.store.write().await;
+        let Some(user) = guard.get_mut(&id) else {
+            return Ok(None);
+        };
+        if let Some(email) = params.email {
+            user.email = email;
+        }
+        if let Some(name) = params.name {
+            user.name = name;
+        }
+        if let Some(password_hash) = params.password_hash {
+            user.password_hash = password_hash;
+        }
+        if let Some(is_active) = params.is_active {
+            user.is_active = is_active;
+        }
+        Ok(Some(user.clone()))
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
+}
+
+#[async_trait]
+impl RoleRepository for InMemoryRoleRepository {
+    async fn insert(&self, id: Uuid, name: String) -> AppResult<Role> {
+        let role = Role::new(id, name);
+        self.store.write().await.insert(role.id, role.clone());
+        Ok(role)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<Role>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_by_name(&self, name: &str) -> AppResult<Option<Role>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .find(|role| role.name == name)
+            .cloned())
+    }
+
+    async fn fetch_all(&self) -> AppResult<Vec<Role>> {
+        Ok(self.store.read().await.values().cloned().collect())
+    }
+}
+
+#[async_trait]
+impl UserRoleAssignmentRepository for InMemoryUserRoleAssignmentRepository {
+    async fn insert(&self, id: Uuid, params: AssignRoleParams) -> AppResult<UserRoleAssignment> {
+        let assignment = UserRoleAssignment::new(
+            id,
+            params.user_id,
+            params.role_id,
+            params.role_name,
+            params.organization_id,
+            params.payroll_id,
+            params.payroll_name,
+        );
+        self.store
+            .write()
+            .await
+            .insert(assignment.id, assignment.clone());
+        Ok(assignment)
+    }
+
+    async fn fetch(&self, id: Uuid) -> AppResult<Option<UserRoleAssignment>> {
+        Ok(self.store.read().await.get(&id).cloned())
+    }
+
+    async fn fetch_for_user(&self, user_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|assignment| assignment.user_id == user_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn fetch_for_org(&self, org_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|assignment| assignment.organization_id == Some(org_id))
+            .cloned()
+            .collect())
+    }
+
+    async fn fetch_for_payroll(&self, payroll_id: Uuid) -> AppResult<Vec<UserRoleAssignment>> {
+        Ok(self
+            .store
+            .read()
+            .await
+            .values()
+            .filter(|assignment| assignment.payroll_id == Some(payroll_id))
+            .cloned()
+            .collect())
+    }
+
+    async fn delete(&self, id: Uuid) -> AppResult<bool> {
+        Ok(self.store.write().await.remove(&id).is_some())
+    }
 }
 
 #[async_trait]

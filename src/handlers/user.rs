@@ -116,13 +116,21 @@ async fn visible_user_ids_for_org_manager(
 
     for &org_id in managed {
         // Org-scoped assignments (OrganizationManager stored with organization_id)
-        for a in state.user_role_assignment_service().list_for_org(org_id).await? {
+        for a in state
+            .user_role_assignment_service()
+            .list_for_org(org_id)
+            .await?
+        {
             ids.insert(a.user_id);
         }
         // Payroll-scoped assignments (PayrollUser/PayrollReport stored with payroll_id)
         let payrolls = state.payroll_service().list(org_id).await?;
         for payroll in payrolls {
-            for a in state.user_role_assignment_service().list_for_payroll(payroll.id).await? {
+            for a in state
+                .user_role_assignment_service()
+                .list_for_payroll(payroll.id)
+                .await?
+            {
                 ids.insert(a.user_id);
             }
         }
@@ -173,7 +181,9 @@ pub async fn create(
     Json(payload): Json<CreateUserRequest>,
 ) -> AppResult<(StatusCode, Json<UserResponse>)> {
     if !auth_user.is_org_manager() {
-        return Err(AppError::forbidden("superuser or organization manager access required"));
+        return Err(AppError::forbidden(
+            "superuser or organization manager access required",
+        ));
     }
 
     let password_hash = AuthService::hash_password(&payload.password)?;
@@ -212,7 +222,9 @@ pub async fn list(
 
     let managed = auth_user.managed_org_ids();
     if managed.is_empty() {
-        return Err(AppError::forbidden("superuser or organization manager access required"));
+        return Err(AppError::forbidden(
+            "superuser or organization manager access required",
+        ));
     }
 
     let visible_user_ids = visible_user_ids_for_org_manager(&managed, &state).await?;
@@ -244,7 +256,9 @@ pub async fn get(
     auth_user: AuthUser,
     Path(params): Path<UserPathParams>,
 ) -> AppResult<Json<UserResponse>> {
-    if !auth_user.is_superuser && !org_manager_can_access_user(&auth_user, params.id, &state).await? {
+    if !auth_user.is_superuser
+        && !org_manager_can_access_user(&auth_user, params.id, &state).await?
+    {
         return Err(AppError::forbidden("access to this user is not permitted"));
     }
 
@@ -277,7 +291,9 @@ pub async fn update(
     Path(params): Path<UserPathParams>,
     Json(payload): Json<UpdateUserRequest>,
 ) -> AppResult<Json<UserResponse>> {
-    if !auth_user.is_superuser && !org_manager_can_access_user(&auth_user, params.id, &state).await? {
+    if !auth_user.is_superuser
+        && !org_manager_can_access_user(&auth_user, params.id, &state).await?
+    {
         return Err(AppError::forbidden("access to this user is not permitted"));
     }
 
@@ -352,7 +368,9 @@ pub async fn list_assignments(
     auth_user: AuthUser,
     Path(params): Path<UserPathParams>,
 ) -> AppResult<Json<Vec<UserRoleAssignmentResponse>>> {
-    if !auth_user.is_superuser && !org_manager_can_access_user(&auth_user, params.id, &state).await? {
+    if !auth_user.is_superuser
+        && !org_manager_can_access_user(&auth_user, params.id, &state).await?
+    {
         return Err(AppError::forbidden("access to this user is not permitted"));
     }
 
@@ -392,12 +410,18 @@ pub async fn assign_role(
     if !auth_user.is_superuser {
         let managed = auth_user.managed_org_ids();
         if managed.is_empty() {
-            return Err(AppError::forbidden("superuser or organization manager access required"));
+            return Err(AppError::forbidden(
+                "superuser or organization manager access required",
+            ));
         }
         // Org managers can only assign roles scoped to their own orgs
         match payload.organization_id {
             Some(org_id) if managed.contains(&org_id) => {}
-            _ => return Err(AppError::forbidden("org managers can only assign roles within their managed organizations")),
+            _ => {
+                return Err(AppError::forbidden(
+                    "org managers can only assign roles within their managed organizations",
+                ))
+            }
         }
         if !org_manager_can_access_user(&auth_user, params.id, &state).await? {
             return Err(AppError::forbidden("access to this user is not permitted"));
@@ -446,17 +470,25 @@ pub async fn revoke_role(
     if !auth_user.is_superuser {
         let managed = auth_user.managed_org_ids();
         if managed.is_empty() {
-            return Err(AppError::forbidden("superuser or organization manager access required"));
+            return Err(AppError::forbidden(
+                "superuser or organization manager access required",
+            ));
         }
         // Verify the assignment belongs to one of the manager's orgs
         let assignment = state
             .user_role_assignment_service()
             .get(params.assignment_id)
             .await?
-            .ok_or_else(|| AppError::not_found(format!("assignment `{}` not found", params.assignment_id)))?;
+            .ok_or_else(|| {
+                AppError::not_found(format!("assignment `{}` not found", params.assignment_id))
+            })?;
         match assignment.organization_id {
             Some(org_id) if managed.contains(&org_id) => {}
-            _ => return Err(AppError::forbidden("org managers can only revoke assignments within their managed organizations")),
+            _ => {
+                return Err(AppError::forbidden(
+                    "org managers can only revoke assignments within their managed organizations",
+                ))
+            }
         }
     }
 

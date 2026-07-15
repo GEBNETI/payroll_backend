@@ -181,7 +181,10 @@ impl AppState {
             .await
             .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
         if migrated_organizations > 0 {
-            tracing::info!(migrated_organizations, "backfilled missing organization RIFs");
+            tracing::info!(
+                migrated_organizations,
+                "backfilled missing organization RIFs"
+            );
         }
 
         self.role_service()
@@ -201,8 +204,7 @@ impl AppState {
             .await
             .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
 
-        let root_username =
-            std::env::var("ROOT_USERNAME").unwrap_or_else(|_| "root".to_string());
+        let root_username = std::env::var("ROOT_USERNAME").unwrap_or_else(|_| "root".to_string());
 
         if self
             .user_service()
@@ -211,10 +213,9 @@ impl AppState {
             .map_err(|e| ServerSetupError::Seed(e.to_string()))?
             .is_none()
         {
-            let root_password = std::env::var("ROOT_PASSWORD")
-                .map_err(|_| {
-                    ServerSetupError::Seed("ROOT_PASSWORD environment variable not set".to_string())
-                })?;
+            let root_password = std::env::var("ROOT_PASSWORD").map_err(|_| {
+                ServerSetupError::Seed("ROOT_PASSWORD environment variable not set".to_string())
+            })?;
 
             let password_hash = AuthService::hash_password(&root_password)
                 .map_err(|e| ServerSetupError::Seed(e.to_string()))?;
@@ -236,9 +237,7 @@ impl AppState {
                 .await
                 .map_err(|e| ServerSetupError::Seed(e.to_string()))?
                 .ok_or_else(|| {
-                    ServerSetupError::Seed(
-                        "Superuser role not found after creation".to_string(),
-                    )
+                    ServerSetupError::Seed("Superuser role not found after creation".to_string())
                 })?;
 
             self.user_role_assignment_service()
@@ -311,10 +310,8 @@ impl AppStateBuilder {
         self.payroll_history_detail_repository = Some(Arc::new(
             SurrealAnyPayrollHistoryDetailRepository::new(client.clone()),
         ));
-        self.user_repository =
-            Some(Arc::new(SurrealAnyUserRepository::new(client.clone())));
-        self.role_repository =
-            Some(Arc::new(SurrealAnyRoleRepository::new(client.clone())));
+        self.user_repository = Some(Arc::new(SurrealAnyUserRepository::new(client.clone())));
+        self.role_repository = Some(Arc::new(SurrealAnyRoleRepository::new(client.clone())));
         self.user_role_assignment_repository = Some(Arc::new(
             SurrealAnyUserRoleAssignmentRepository::new(client),
         ));
@@ -450,12 +447,8 @@ impl AppStateBuilder {
         let payroll_history_detail_repository = self
             .payroll_history_detail_repository
             .expect("payroll_history_detail_repository is required");
-        let user_repository = self
-            .user_repository
-            .expect("user_repository is required");
-        let role_repository = self
-            .role_repository
-            .expect("role_repository is required");
+        let user_repository = self.user_repository.expect("user_repository is required");
+        let role_repository = self.role_repository.expect("role_repository is required");
         let user_role_assignment_repository = self
             .user_role_assignment_repository
             .expect("user_role_assignment_repository is required");
@@ -544,8 +537,9 @@ impl AppStateBuilder {
 
         let user_service = Arc::new(UserService::new(user_repository));
         let role_service = Arc::new(RoleService::new(role_repository));
-        let user_role_assignment_service =
-            Arc::new(UserRoleAssignmentService::new(user_role_assignment_repository));
+        let user_role_assignment_service = Arc::new(UserRoleAssignmentService::new(
+            user_role_assignment_repository,
+        ));
         let auth_service = Arc::new(AuthService::new(jwt_config, Arc::clone(&user_service)));
 
         AppState {

@@ -150,7 +150,7 @@ impl PayrollHistoryService {
             .await?;
 
         let mut histories = self.repository.fetch_by_payroll(payroll_id).await?;
-        histories.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        histories.sort_by_key(|history| std::cmp::Reverse(history.created_at));
         Ok(histories)
     }
 

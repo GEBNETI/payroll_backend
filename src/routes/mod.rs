@@ -14,7 +14,6 @@ use crate::{openapi::ApiDoc, server::AppState};
 
 pub mod auth;
 pub mod bank;
-pub mod role;
 pub mod division;
 pub mod employee;
 pub mod employee_payroll_concept;
@@ -28,6 +27,7 @@ pub mod payroll_concept_definition;
 pub mod payroll_history;
 pub mod payroll_history_detail;
 pub mod payroll_history_report;
+pub mod role;
 pub mod user;
 
 fn build_cors() -> CorsLayer {
@@ -75,7 +75,6 @@ pub fn app_router(state: AppState) -> Router {
         .merge(payroll_calculator::router())
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi))
         .layer(build_cors())
-
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

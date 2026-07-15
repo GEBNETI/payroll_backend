@@ -107,7 +107,12 @@ pub async fn list(
     let organizations = state.organization_service().list().await?;
 
     if auth_user.is_superuser {
-        return Ok(Json(organizations.into_iter().map(OrganizationResponse::from).collect()));
+        return Ok(Json(
+            organizations
+                .into_iter()
+                .map(OrganizationResponse::from)
+                .collect(),
+        ));
     }
 
     // Non-superusers see only organizations they have an assignment in

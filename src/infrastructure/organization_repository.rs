@@ -54,7 +54,9 @@ where
         let rid = RecordId::new(ORGANIZATION_TABLE, id.to_string());
         let mut response = self
             .client
-            .query(format!("{SELECT_ORGANIZATION_FIELDS} FROM organization WHERE id = $rid"))
+            .query(format!(
+                "{SELECT_ORGANIZATION_FIELDS} FROM organization WHERE id = $rid"
+            ))
             .bind(("rid", rid))
             .await?;
 

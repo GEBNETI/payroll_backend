@@ -83,6 +83,7 @@ pub struct PayrollCalculatorService {
 }
 
 impl PayrollCalculatorService {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         payroll_history_service: Arc<PayrollHistoryService>,
         payroll_history_detail_service: Arc<PayrollHistoryDetailService>,
@@ -449,6 +450,7 @@ impl PayrollCalculatorService {
         warnings
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn process_employee(
         &self,
         employee: &Employee,
@@ -808,6 +810,7 @@ impl PayrollCalculatorService {
     /// - code_map: maps original code to sanitized code
     /// - collisions: maps sanitized names to lists of original codes that collide with each other
     /// - base_var_collisions: list of (concept_code, base_var) pairs where a concept shadows a base var
+    #[allow(clippy::type_complexity)]
     fn build_sanitized_code_map_with_base_vars(
         concepts: &[&PayrollConcept],
     ) -> (
