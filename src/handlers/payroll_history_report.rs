@@ -31,15 +31,6 @@ pub struct PatriaReportQueryParams {
     pub payment_date: NaiveDate,
 }
 
-#[derive(Debug, Deserialize, IntoParams)]
-#[into_params(parameter_in = Path)]
-pub struct PatriaReportPathParams {
-    pub organization_id: Uuid,
-    pub payroll_id: Uuid,
-    pub history_id: Uuid,
-    pub bank_id: Uuid,
-}
-
 #[utoipa::path(
     get,
     path = "/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/reports/earnings-deductions",
@@ -88,18 +79,18 @@ pub async fn payroll(
 
 #[utoipa::path(
     get,
-    path = "/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/reports/patria/{bank_id}",
-    params(PatriaReportPathParams, PatriaReportQueryParams),
+    path = "/organizations/{organization_id}/payrolls/{payroll_id}/history/{history_id}/reports/patria",
+    params(PayrollHistoryReportPathParams, PatriaReportQueryParams),
     responses(
-        (status = 200, description = "Patria bank text file", content_type = "text/plain"),
-        (status = 404, description = "Payroll history or bank details not found")
+        (status = 200, description = "Patria payment text file", content_type = "text/plain"),
+        (status = 404, description = "Payroll history or payment details not found")
     ),
     tag = "Payroll History Reports",
     operation_id = "get_patria_report"
 )]
 pub async fn patria(
     State(state): State<AppState>,
-    Path(params): Path<PatriaReportPathParams>,
+    Path(params): Path<PayrollHistoryReportPathParams>,
     Query(query): Query<PatriaReportQueryParams>,
 ) -> AppResult<axum::response::Response> {
     let file = state
@@ -108,7 +99,6 @@ pub async fn patria(
             params.organization_id,
             params.payroll_id,
             params.history_id,
-            params.bank_id,
             query.payment_date,
         )
         .await?;

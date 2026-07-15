@@ -188,7 +188,6 @@ impl PayrollHistoryReportService {
         organization_id: Uuid,
         payroll_id: Uuid,
         history_id: Uuid,
-        bank_id: Uuid,
         payment_date: NaiveDate,
     ) -> AppResult<PatriaTextFile> {
         let history = self
@@ -202,18 +201,15 @@ impl PayrollHistoryReportService {
             .ok_or_else(|| {
                 AppError::not_found(format!("organization `{organization_id}` not found"))
             })?;
-        let details: Vec<PayrollHistoryDetail> = self
+        let details = self
             .payroll_history_detail_service
             .list(organization_id, payroll_id, history_id)
-            .await?
-            .into_iter()
-            .filter(|detail| detail.bank_id == bank_id)
-            .collect();
+            .await?;
 
         if details.is_empty() {
-            return Err(AppError::not_found(format!(
-                "no payroll history details found for bank `{bank_id}`"
-            )));
+            return Err(AppError::not_found(
+                "no payroll history details found for the Patria file",
+            ));
         }
 
         Self::build_patria_text_file(history, organization.rif, details, payment_date)
@@ -293,7 +289,6 @@ impl PayrollHistoryReportService {
 
         let mut records = Vec::new();
         let mut total_cents = 0_u64;
-        let mut bank_name = None;
         for employee_details in details_by_employee.into_values() {
             let sample = employee_details
                 .first()
@@ -312,8 +307,6 @@ impl PayrollHistoryReportService {
             total_cents = total_cents.checked_add(amount_cents).ok_or_else(|| {
                 AppError::validation("total amount exceeds the Patria file limit")
             })?;
-            bank_name.get_or_insert_with(|| sample.bank_name.clone());
-
             records.push((
                 sample.employee_id_number.clone(),
                 format!(
@@ -346,16 +339,15 @@ impl PayrollHistoryReportService {
                 Self::fixed_number(digits, 8, "id number")?,
                 bank_account,
                 Self::fixed_number(amount_cents, 11, "employee net amount")?,
-                Self::fixed_text(&full_name, 40),
+                Self::fixed_text(&full_name.to_uppercase(), 40),
             ));
         }
 
         let filename = format!(
-            "{}-{}-{}-{}-patria.txt",
+            "{}-{}-{}-patria.txt",
             Self::slug(&history.organization_name),
             Self::slug(&history.payroll_name),
             date,
-            Self::slug(bank_name.as_deref().unwrap_or("bank")),
         );
         Ok(PatriaTextFile { filename, content })
     }
@@ -858,8 +850,9 @@ mod tests {
     }
 
     #[test]
-    fn builds_a_fixed_width_patria_text_file_for_one_bank() {
-        let bank_id = Uuid::new_v4();
+    fn builds_one_fixed_width_patria_text_file_for_multiple_banks() {
+        let first_bank_id = Uuid::new_v4();
+        let second_bank_id = Uuid::new_v4();
         let employee_id = Uuid::new_v4();
         let mut earning = detail(
             Uuid::new_v4(),
@@ -872,8 +865,8 @@ mod tests {
             100.50,
         );
         earning.employee_id = employee_id;
-        earning.bank_id = bank_id;
-        earning.bank_name = "Bank".to_string();
+        earning.bank_id = first_bank_id;
+        earning.bank_name = "First Bank".to_string();
         earning.employee_bank_account = "01020000000000000001".to_string();
 
         let mut deduction = detail(
@@ -887,24 +880,48 @@ mod tests {
             0.50,
         );
         deduction.employee_id = employee_id;
-        deduction.bank_id = bank_id;
-        deduction.bank_name = "Bank".to_string();
+        deduction.bank_id = first_bank_id;
+        deduction.bank_name = "First Bank".to_string();
         deduction.employee_bank_account = "01020000000000000001".to_string();
+
+        let mut second_bank_earning = detail(
+            Uuid::new_v4(),
+            "SALARY",
+            "Salary",
+            PayrollConceptType::Earning,
+            "E00000002",
+            "Luis",
+            "Cruz",
+            50.25,
+        );
+        second_bank_earning.employee_id = Uuid::new_v4();
+        second_bank_earning.bank_id = second_bank_id;
+        second_bank_earning.bank_name = "Second Bank".to_string();
+        second_bank_earning.employee_bank_account = "01050000000000000002".to_string();
 
         let file = PayrollHistoryReportService::build_patria_text_file(
             history(),
             "G000000000".to_string(),
-            vec![earning, deduction],
+            vec![earning, deduction, second_bank_earning],
             NaiveDate::from_ymd_opt(2026, 7, 10).unwrap(),
         )
         .unwrap();
 
         let lines: Vec<&str> = file.content.lines().collect();
-        assert_eq!(lines[0], "ONTNOMG0000000000000001000000000010000VES20260710");
+        assert_eq!(
+            lines[0],
+            "ONTNOMG0000000000000002000000000015025VES20260710"
+        );
         assert_eq!(lines[1].len(), 80);
-        assert_eq!(&lines[1][0..9], "V00000001");
-        assert_eq!(&lines[1][9..29], "01020000000000000001");
-        assert_eq!(&lines[1][29..40], "00000010000");
-        assert_eq!(file.filename, "acme-main-20260710-bank-patria.txt");
+        assert_eq!(lines[2].len(), 80);
+        assert_eq!(&lines[1][0..9], "E00000002");
+        assert_eq!(&lines[1][9..29], "01050000000000000002");
+        assert_eq!(&lines[1][29..40], "00000005025");
+        assert_eq!(&lines[1][40..49], "LUIS CRUZ");
+        assert_eq!(&lines[2][0..9], "V00000001");
+        assert_eq!(&lines[2][9..29], "01020000000000000001");
+        assert_eq!(&lines[2][29..40], "00000010000");
+        assert_eq!(&lines[2][40..49], "ANA BAKER");
+        assert_eq!(file.filename, "acme-main-20260710-patria.txt");
     }
 }
